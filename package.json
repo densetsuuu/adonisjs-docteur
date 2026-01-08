@@ -1,0 +1,101 @@
+{
+  "name": "docteur",
+  "description": "AdonisJS cold start profiler - analyze and optimize your application boot time",
+  "version": "0.0.0",
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "type": "module",
+  "files": [
+    "build/src",
+    "build/providers",
+    "build/commands",
+    "build/stubs",
+    "build/index.d.ts",
+    "build/index.js",
+    "build/configure.d.ts",
+    "build/configure.js"
+  ],
+  "exports": {
+    ".": "./build/index.js",
+    "./types": "./build/src/types.js",
+    "./commands/*": "./build/commands/*.js",
+    "./providers/*": "./build/providers/*.js",
+    "./profiler/loader": "./build/src/profiler/loader.js",
+    "./profiler/hooks": "./build/src/profiler/hooks.js"
+  },
+  "scripts": {
+    "clean": "del-cli build",
+    "copy:templates": "copyfiles \"stubs/**/*.stub\" build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "quick:test": "node --import=./tsnode.esm.js --enable-source-maps bin/test.ts",
+    "pretest": "npm run lint",
+    "test": "c8 npm run quick:test",
+    "prebuild": "npm run lint && npm run clean",
+    "build": "tsc",
+    "postbuild": "npm run copy:templates",
+    "release": "np",
+    "version": "npm run build",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "adonisjs",
+    "adonis",
+    "profiler",
+    "cold-start",
+    "performance",
+    "diagnostics",
+    "boot-time"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cli-table3": "^0.6.5",
+    "picocolors": "^1.1.1",
+    "ts-pattern": "^5.6.0"
+  },
+  "devDependencies": {
+    "@adonisjs/assembler": "^8.0.0-next.28",
+    "@adonisjs/core": "^7.0.0-next.20",
+    "@adonisjs/eslint-config": "^3.0.0-next.9",
+    "@adonisjs/prettier-config": "^1.4.5",
+    "@adonisjs/tsconfig": "^2.0.0-next.3",
+    "@japa/assert": "^4.2.0",
+    "@japa/runner": "^5.0.0",
+    "@swc/core": "^1.6.3",
+    "@types/node": "^25.0.3",
+    "c8": "^10.1.2",
+    "copyfiles": "^2.4.1",
+    "del-cli": "^5.1.0",
+    "eslint": "^9.15.0",
+    "np": "^10.0.6",
+    "prettier": "^3.3.2",
+    "ts-node-maintained": "^10.9.4",
+    "typescript": "^5.4.5"
+  },
+  "peerDependencies": {
+    "@adonisjs/core": "^7.0.0-next.20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "latest"
+  },
+  "np": {
+    "message": "chore(release): %s",
+    "tag": "latest",
+    "branch": "main",
+    "anyBranch": false
+  },
+  "c8": {
+    "reporter": [
+      "text",
+      "html"
+    ],
+    "exclude": [
+      "tests/**"
+    ]
+  },
+  "prettier": "@adonisjs/prettier-config"
+}
