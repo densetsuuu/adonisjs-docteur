@@ -8,6 +8,8 @@
 */
 
 import type {
+  AppFileCategory,
+  AppFileGroup,
   ModuleTiming,
   ProfileResult,
   ProfileSummary,
@@ -29,6 +31,106 @@ function categorizeModule(url: string) {
     return 'node_modules'
   }
   return 'user'
+}
+
+/**
+ * Display names for app file categories
+ */
+const categoryDisplayNames: Record<AppFileCategory, string> = {
+  controller: 'Controllers',
+  service: 'Services',
+  model: 'Models',
+  middleware: 'Middleware',
+  validator: 'Validators',
+  exception: 'Exceptions',
+  event: 'Events',
+  listener: 'Listeners',
+  mailer: 'Mailers',
+  policy: 'Policies',
+  command: 'Commands',
+  provider: 'Providers',
+  config: 'Config',
+  start: 'Start Files',
+  other: 'Other',
+}
+
+/**
+ * Categorizes an app file based on its path
+ */
+function categorizeAppFile(url: string): AppFileCategory {
+  const path = url.toLowerCase()
+
+  // Check for common AdonisJS directory patterns
+  if (path.includes('/controllers/') || path.includes('_controller.')) {
+    return 'controller'
+  }
+  if (path.includes('/services/') || path.includes('_service.')) {
+    return 'service'
+  }
+  if (path.includes('/models/') || path.includes('/model/')) {
+    return 'model'
+  }
+  if (path.includes('/middleware/') || path.includes('_middleware.')) {
+    return 'middleware'
+  }
+  if (path.includes('/validators/') || path.includes('_validator.')) {
+    return 'validator'
+  }
+  if (path.includes('/exceptions/') || path.includes('_exception.')) {
+    return 'exception'
+  }
+  if (path.includes('/events/') || path.includes('_event.')) {
+    return 'event'
+  }
+  if (path.includes('/listeners/') || path.includes('_listener.')) {
+    return 'listener'
+  }
+  if (path.includes('/mailers/') || path.includes('_mailer.')) {
+    return 'mailer'
+  }
+  if (path.includes('/policies/') || path.includes('_policy.')) {
+    return 'policy'
+  }
+  if (path.includes('/commands/') || path.includes('_command.')) {
+    return 'command'
+  }
+  if (path.includes('/providers/') || path.includes('_provider.')) {
+    return 'provider'
+  }
+  if (path.includes('/config/')) {
+    return 'config'
+  }
+  if (path.includes('/start/')) {
+    return 'start'
+  }
+
+  return 'other'
+}
+
+/**
+ * Groups app files by their category
+ */
+export function groupAppFilesByCategory(modules: ModuleTiming[]): AppFileGroup[] {
+  const groups = new Map<AppFileCategory, ModuleTiming[]>()
+
+  // Filter to only user modules (app files)
+  const appModules = modules.filter((m) => categorizeModule(m.resolvedUrl) === 'user')
+
+  for (const module of appModules) {
+    const category = categorizeAppFile(module.resolvedUrl)
+    const existing = groups.get(category) || []
+    existing.push(module)
+    groups.set(category, existing)
+  }
+
+  return Array.from(groups.entries())
+    .map(([category, files]) => ({
+      category,
+      displayName: categoryDisplayNames[category],
+      files: files.sort((a, b) => b.loadTime - a.loadTime),
+      totalTime: files.reduce((sum, f) => sum + f.loadTime, 0),
+    }))
+    .sort((a, b) => b.totalTime - a.totalTime)
 }
 
 /**
@@ -100,6 +202,7 @@ export function computeSummary(
   }
 
   const totalProviderTime = providers.reduce((sum, p) => sum + p.totalTime, 0)
+  const appFileGroups = groupAppFilesByCategory(modules)
 
   return {
     totalModules: modules.length,
@@ -108,6 +211,7 @@ export function computeSummary(
     adonisModules,
     totalModuleTime,
     totalProviderTime,
+    appFileGroups,
   }
 }
 

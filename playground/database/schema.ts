@@ -1,5 +1,5 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
-import { DateTime } from 'luxon'
+import { type DateTime } from 'luxon'
 
 export class UserSchema extends BaseModel {
   static $columns = ['id', 'fullName', 'email', 'password', 'createdAt', 'updatedAt'] as const

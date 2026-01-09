@@ -2,11 +2,13 @@
 @let(labelText = labelTextFromSlot.trim() ? labelTextFromSlot : $props.get('text'))
 @let(classes = [])
 
-<label {{ $props
+<label
+  {{ $props
   .except(['text'])
   .merge({
     for: $context.id,
     class: classes,
     'data-invalid': $context.hasErrors ? 'true' : false,
   })
-  .toAttrs() }}>{{{ labelText }}}</label>
+  .toAttrs() }}
+>{{{ labelText }}}</label>

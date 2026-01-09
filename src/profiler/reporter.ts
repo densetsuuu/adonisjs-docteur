@@ -9,8 +9,29 @@
 
 import Table from 'cli-table3'
 import pc from 'picocolors'
-import type { ProfileResult, ResolvedConfig } from '../types.js'
+import type { AppFileGroup, ProfileResult, ResolvedConfig } from '../types.js'
 import { filterModules, getTopSlowest, groupModulesByPackage, simplifyUrl } from './collector.js'
+
+/**
+ * Icons for app file categories
+ */
+const categoryIcons: Record<string, string> = {
+  controller: '🎮',
+  service: '⚙️',
+  model: '📦',
+  middleware: '🔗',
+  validator: '✅',
+  exception: '💥',
+  event: '📡',
+  listener: '👂',
+  mailer: '📧',
+  policy: '🔐',
+  command: '⌨️',
+  provider: '🔌',
+  config: '⚙️',
+  start: '🚀',
+  other: '📄',
+}
 
 /**
  * Formats a duration in milliseconds for display
@@ -320,6 +341,72 @@ export function printRecommendations(result: ProfileResult, config: ResolvedConf
 }
 
 /**
+ * Prints app files grouped by category
+ */
+export function printAppFiles(result: ProfileResult, cwd: string): void {
+  const groups = result.summary.appFileGroups
+
+  if (groups.length === 0) {
+    return
+  }
+
+  console.log(pc.bold('  📁 App Files by Category'))
+  console.log()
+
+  for (const group of groups) {
+    if (group.files.length === 0) continue
+
+    const icon = categoryIcons[group.category] || ''
+    const header = `  ${icon} ${group.displayName} (${group.files.length} files, ${formatDuration(group.totalTime)})`
+    console.log(pc.bold(pc.white(header)))
+
+    printAppFileGroup(group, cwd)
+    console.log()
+  }
+}
+
+/**
+ * Prints a single app file group
+ */
+function printAppFileGroup(group: AppFileGroup, cwd: string): void {
+  const maxTime = group.files[0]?.loadTime || 1
+
+  const table = new Table({
+    chars: {
+      'top': '',
+      'top-mid': '',
+      'top-left': '',
+      'top-right': '',
+      'bottom': '',
+      'bottom-mid': '',
+      'bottom-left': '',
+      'bottom-right': '',
+      'left': '    ',
+      'left-mid': '',
+      'mid': '',
+      'mid-mid': '',
+      'right': '',
+      'right-mid': '',
+      'middle': ' ',
+    },
+    style: { 'padding-left': 0, 'padding-right': 1 },
+    colWidths: [45, 12, 22],
+  })
+
+  for (const file of group.files) {
+    const simplified = simplifyUrl(file.resolvedUrl, cwd)
+    const fileName = simplified.split('/').pop() || simplified
+    table.push([
+      fileName.length > 43 ? fileName.slice(-43) : fileName,
+      colorDuration(file.loadTime),
+      createBar(file.loadTime, maxTime),
+    ])
+  }
+
+  console.log(table.toString())
+}
+
+/**
  * Prints the footer
  */
 export function printFooter(): void {
@@ -334,6 +421,7 @@ export function printFooter(): void {
 export function printReport(result: ProfileResult, config: ResolvedConfig, cwd: string): void {
   printHeader()
   printSummary(result)
+  printAppFiles(result, cwd)
   printSlowestModules(result, config, cwd)
 
   if (config.groupByPackage) {

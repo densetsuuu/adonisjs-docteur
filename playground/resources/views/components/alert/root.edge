@@ -2,7 +2,8 @@
 @inject({ variant, autoDismiss: $props.get('autoDismiss') })
 @let(classes = ['alert', `alert-${variant}`])
 
-<div {{ $props
+<div
+  {{ $props
   .except(['variant', 'autoDismiss'])
   .merge({
     role: 'alert',
@@ -11,5 +12,7 @@
     'x-show': 'isVisible',
     'x-cloak': true
   })
-  .toAttrs()
-}}> {{{ await $slots.main() }}} </div>
+  .toAttrs() }}
+>
+  {{{ await $slots.main() }}}
+</div>

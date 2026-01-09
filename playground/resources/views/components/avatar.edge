@@ -5,10 +5,10 @@
   <img {{ $props
   .except(['initials', 'name'])
   .merge({ class: classes })
-  .toAttrs() }}>
+  .toAttrs() }} />
 @elseif(nameInitials)
   <span {{ $props
   .except(['initials', 'name', 'src'])
   .merge({ class: classes })
-  .toAttrs() }}> {{ nameInitials.toUpperCase() }} </span>
+  .toAttrs() }}>{{ nameInitials.toUpperCase() }} </span>
 @end

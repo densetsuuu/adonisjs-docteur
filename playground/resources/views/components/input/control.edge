@@ -5,7 +5,8 @@
 )
 @let(classes = [])
 
-<input {{ $props
+<input
+  {{ $props
   .except(['value'])
   .merge({
     name: $context.name,
@@ -23,4 +24,5 @@
       $context.oldValue && ($context.oldValue === inputValue || $context.oldValue === 'on')
     ),
   })
-  .toAttrs() }} />
+  .toAttrs() }}
+/>

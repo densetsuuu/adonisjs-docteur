@@ -108,6 +108,51 @@ export interface ProfileResult {
 }
 
 /**
+ * App file category types
+ */
+export type AppFileCategory =
+  | 'controller'
+  | 'service'
+  | 'model'
+  | 'middleware'
+  | 'validator'
+  | 'exception'
+  | 'event'
+  | 'listener'
+  | 'mailer'
+  | 'policy'
+  | 'command'
+  | 'provider'
+  | 'config'
+  | 'start'
+  | 'other'
+
+/**
+ * Grouped app files by category
+ */
+export interface AppFileGroup {
+  /**
+   * Category name (e.g., 'controller', 'service')
+   */
+  category: AppFileCategory
+
+  /**
+   * Display name for the category
+   */
+  displayName: string
+
+  /**
+   * Files in this category
+   */
+  files: ModuleTiming[]
+
+  /**
+   * Total load time for all files in this category
+   */
+  totalTime: number
+}
+
+/**
  * Summary statistics for the profile
  */
 export interface ProfileSummary {
@@ -140,6 +185,11 @@ export interface ProfileSummary {
    * Total time spent in provider lifecycle
    */
   totalProviderTime: number
+
+  /**
+   * App files grouped by category
+   */
+  appFileGroups: AppFileGroup[]
 }
 
 /**

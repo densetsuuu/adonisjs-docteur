@@ -4,7 +4,8 @@
   $props.get('routeParams'),
   $props.get('routeOptions'),
 ))
-<form {{ $props
+<form
+  {{ $props
   .except(['action', 'method', 'route', 'routeParams', 'routeOptions'])
   .merge(formProps)
   .toAttrs() }}

@@ -1,5 +1,6 @@
 import { indexEntities } from '@adonisjs/core'
 import { defineConfig } from '@adonisjs/core/app'
+import { indexControllers } from '@adonisjs-community/girouette'
 
 export default defineConfig({
   /*
@@ -23,7 +24,11 @@ export default defineConfig({
   | will be scanned automatically from the "./commands" directory.
   |
   */
-  commands: [() => import('@adonisjs/core/commands'), () => import('@adonisjs/lucid/commands'), () => import('docteur/commands/analyze')],
+  commands: [
+    () => import('@adonisjs/core/commands'),
+    () => import('@adonisjs/lucid/commands'),
+    () => import('docteur/commands/analyze'),
+  ],
 
   /*
   |--------------------------------------------------------------------------
@@ -49,7 +54,7 @@ export default defineConfig({
     () => import('@adonisjs/static/static_provider'),
     () => import('@adonisjs/lucid/database_provider'),
     () => import('@adonisjs/auth/auth_provider'),
-    () => import('docteur/providers/docteur_provider')
+    () => import('@adonisjs-community/girouette/girouette_provider'),
   ],
 
   /*
@@ -60,7 +65,11 @@ export default defineConfig({
   | List of modules to import before starting the application.
   |
   */
-  preloads: [() => import('#start/routes'), () => import('#start/kernel')],
+  preloads: [
+    () => import('#start/routes'),
+    () => import('#start/kernel'),
+    () => import('#start/routes.girouette'),
+  ],
 
   /*
   |--------------------------------------------------------------------------
@@ -119,7 +128,7 @@ export default defineConfig({
   |
   */
   hooks: {
-    init: [indexEntities()],
+    init: [indexEntities(), indexControllers()],
     buildStarting: [() => import('@adonisjs/vite/build_hook')],
   },
 })

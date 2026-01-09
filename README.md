@@ -28,13 +28,13 @@ node ace docteur:analyze
 
 ### Options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--top` | Number of slowest modules to display | 20 |
-| `--threshold` | Only show modules slower than this (ms) | 1 |
-| `--no-node-modules` | Exclude node_modules from analysis | false |
-| `--no-group` | Don't group modules by package | false |
-| `--entry` | Custom entry point to profile | `bin/server.ts` |
+| Flag                | Description                             | Default         |
+| ------------------- | --------------------------------------- | --------------- |
+| `--top`             | Number of slowest modules to display    | 20              |
+| `--threshold`       | Only show modules slower than this (ms) | 1               |
+| `--no-node-modules` | Exclude node_modules from analysis      | false           |
+| `--no-group`        | Don't group modules by package          | false           |
+| `--entry`           | Custom entry point to profile           | `bin/server.ts` |
 
 ### Example Output
 
@@ -124,33 +124,43 @@ docteur/
 ### File Responsibilities
 
 #### `commands/analyze.ts`
+
 **The orchestrator**
+
 - User runs `node ace docteur:analyze`
 - Creates a new Node.js process with the AdonisJS app
 - Injects the profiler via `--import loader.ts`
 - Waits for results and displays them
 
 #### `src/profiler/loader.ts`
+
 **The injection point**
+
 - Loaded BEFORE any app code (via `--import`)
 - Registers hooks with `module.register()`
 - Stores all collected timings
 - Responds to parent when results are requested
 
 #### `src/profiler/hooks.ts`
+
 **The spy**
+
 - Intercepts EVERY `import` in the application
 - Measures time for each module with `performance.now()`
 - Sends data to `loader.ts` via MessagePort
 
 #### `src/profiler/collector.ts`
+
 **The analyst**
+
 - Sorts modules by load time
 - Groups by package (node_modules, app, etc.)
 - Calculates statistics
 
 #### `src/profiler/reporter.ts`
+
 **The presenter**
+
 - Formats results as tables
 - Adds colors (red = slow, green = fast)
 - Generates recommendations

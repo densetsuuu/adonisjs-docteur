@@ -19,6 +19,8 @@ export type {
   ProfileSummary,
   DocteurConfig,
   ResolvedConfig,
+  AppFileCategory,
+  AppFileGroup,
 } from './src/types.js'
 
 /**
@@ -31,6 +33,7 @@ export {
   sortByLoadTime,
   getTopSlowest,
   groupModulesByPackage,
+  groupAppFilesByCategory,
   simplifyUrl,
 } from './src/profiler/collector.js'
 
@@ -41,6 +44,7 @@ export {
   printReport,
   printHeader,
   printSummary,
+  printAppFiles,
   printSlowestModules,
   printPackageGroups,
   printProviders,

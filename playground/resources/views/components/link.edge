@@ -13,7 +13,9 @@
 @let(activeClass = request.url() === linkHref ? 'current' : '')
 @let(classes = [activeClass])
 
-<a {{ $props
+<a
+  {{ $props
   .except(['href', 'text', 'route', 'routeParams', 'routeOptions'])
   .merge({ href: linkHref, class: classes })
-  .toAttrs() }}>{{{ linkText }}}</a>
+  .toAttrs() }}
+>{{{ linkText }}}</a>
