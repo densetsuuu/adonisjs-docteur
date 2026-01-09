@@ -21,19 +21,19 @@ import { printReport } from '../src/profiler/reporter.js'
  * Returns metadata for all commands exported by this module
  */
 export function getMetaData() {
-  return [Analyze.serialize()]
+  return [Diagnose.serialize()]
 }
 
 /**
  * Returns the command class for a given command name
  */
 export async function getCommand(_name: string) {
-  return Analyze
+  return Diagnose
 }
 
-export default class Analyze extends BaseCommand {
-  static commandName = 'docteur:analyze'
-  static description = 'Analyze cold start performance of your AdonisJS application'
+export default class Diagnose extends BaseCommand {
+  static commandName = 'docteur:diagnose'
+  static description = 'Analyze cold start performance'
 
   static options: CommandOptions = {
     startApp: false,

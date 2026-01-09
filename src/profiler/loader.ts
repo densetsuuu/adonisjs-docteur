@@ -1,45 +1,26 @@
-/*
-|--------------------------------------------------------------------------
-| ESM Loader Entry Point
-|--------------------------------------------------------------------------
-|
-| This file is loaded via Node's --import flag to install the profiling
-| hooks before any application code runs.
-|
-*/
-
 import { register } from 'node:module'
-import { MessageChannel } from 'node:worker_threads'
 import { performance } from 'node:perf_hooks'
+import { MessageChannel } from 'node:worker_threads'
+
 import type { ModuleTiming } from '../types.js'
 
-// Record the very start time
 const profileStartTime = performance.now()
-
-// Create a message channel for communication with the hooks
 const { port1, port2 } = new MessageChannel()
-
-// Store for all module timings
 const moduleTimings: ModuleTiming[] = []
 
-// Listen for timing data from the hooks
 port1.on('message', (message: { type: string; data: ModuleTiming }) => {
   if (message.type === 'module') {
     moduleTimings.push(message.data)
   }
 })
-
-// Allow the process to exit even if port is active
 ;(port1 as unknown as { unref?: () => void }).unref?.()
 
-// Register the hooks with the message port
 register('./hooks.js', {
   parentURL: import.meta.url,
   data: { port: port2 },
   transferList: [port2],
 })
 
-// Expose timing data globally for the analyze command to access
 declare global {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   var __docteur__: {
@@ -47,15 +28,26 @@ declare global {
     getTimings: () => ModuleTiming[]
     isEnabled: boolean
   }
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  var __docteurExecTimes: Map<string, number>
+}
+
+// Set up global exec times map before any modules load
+globalThis.__docteurExecTimes = new Map()
+
+function getTimingsWithExecTimes(): ModuleTiming[] {
+  return moduleTimings.map((timing) => {
+    const execTime = globalThis.__docteurExecTimes.get(timing.resolvedUrl)
+    return execTime !== undefined ? { ...timing, execTime } : timing
+  })
 }
 
 globalThis.__docteur__ = {
   startTime: profileStartTime,
-  getTimings: () => [...moduleTimings],
+  getTimings: getTimingsWithExecTimes,
   isEnabled: true,
 }
 
-// Handle IPC messages from parent process
 if (process.send) {
   process.on('message', (message: { type: string }) => {
     if (message.type === 'getResults') {
@@ -66,7 +58,7 @@ if (process.send) {
           startTime: profileStartTime,
           endTime,
           totalTime: endTime - profileStartTime,
-          modules: moduleTimings,
+          modules: getTimingsWithExecTimes(),
         },
       })
     }

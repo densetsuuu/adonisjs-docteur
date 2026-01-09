@@ -22,9 +22,14 @@ export interface ModuleTiming {
   resolvedUrl: string
 
   /**
-   * Time in milliseconds to load and evaluate the module
+   * Time in milliseconds to load the module source
    */
   loadTime: number
+
+  /**
+   * Time in milliseconds to execute the module's top-level code
+   */
+  execTime?: number
 
   /**
    * Time in milliseconds to resolve the module specifier

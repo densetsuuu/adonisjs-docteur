@@ -22,7 +22,7 @@ export default class SessionController {
     const user = await User.verifyCredentials(email, password)
 
     await auth.use('web').login(user)
-    response.redirect().toRoute('home')
+    response.redirect().toRoute('new account.home')
   }
 
   /**

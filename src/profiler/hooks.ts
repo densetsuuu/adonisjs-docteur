@@ -1,15 +1,7 @@
-/*
-|--------------------------------------------------------------------------
-| ESM Loader Hooks
-|--------------------------------------------------------------------------
-|
-| These hooks are registered via module.register() and run in a separate
-| thread to intercept and time module loading.
-|
-*/
-
 import { performance } from 'node:perf_hooks'
+
 import type { MessagePort } from 'node:worker_threads'
+
 import type { ModuleTiming } from '../types.js'
 
 interface ResolveContext {
@@ -38,37 +30,26 @@ type NextLoad = (
   shortCircuit?: boolean
 }>
 
-/**
- * Store for timing data - shared via port messaging
- */
 const timings = new Map<string, Partial<ModuleTiming>>()
 const resolveTimings = new Map<string, number>()
 
 let messagePort: MessagePort | null = null
 
-/**
- * Initialize the hooks with a message port for communication
- */
 export function initialize(data: { port: MessagePort }) {
   messagePort = data.port
 }
 
-/**
- * Resolve hook - times module resolution
- */
 export async function resolve(
   specifier: string,
   context: ResolveContext,
   nextResolve: NextResolve
 ): Promise<{ url: string; format?: string; shortCircuit?: boolean }> {
   const startTime = performance.now()
-
   const result = await nextResolve(specifier, context)
-
   const resolveTime = performance.now() - startTime
+
   resolveTimings.set(result.url, resolveTime)
 
-  // Store partial timing data
   const existing = timings.get(result.url) || {}
   timings.set(result.url, {
     ...existing,
@@ -81,9 +62,18 @@ export async function resolve(
   return result
 }
 
-/**
- * Load hook - times module loading and evaluation
- */
+function isUserModule(url: string): boolean {
+  return url.startsWith('file://') && !url.includes('node_modules')
+}
+
+function wrapSourceWithTiming(source: string, url: string): string {
+  const escapedUrl = url.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+  return `const __docteurExecStart = performance.now();
+${source}
+globalThis.__docteurExecTimes?.set('${escapedUrl}', performance.now() - __docteurExecStart);
+`
+}
+
 export async function load(
   url: string,
   context: LoadContext,
@@ -94,13 +84,10 @@ export async function load(
   shortCircuit?: boolean
 }> {
   const startTime = performance.now()
-
   const result = await nextLoad(url, context)
-
   const endTime = performance.now()
   const loadTime = endTime - startTime
 
-  // Complete timing data
   const existing = timings.get(url) || {}
   const timing: ModuleTiming = {
     specifier: existing.specifier || url,
@@ -114,12 +101,24 @@ export async function load(
 
   timings.set(url, timing)
 
-  // Send timing data to main thread
   if (messagePort) {
     messagePort.postMessage({
       type: 'module',
       data: timing,
     })
+  }
+
+  // Inject execution timing code into user modules
+  if (isUserModule(url) && result.source && result.format === 'module') {
+    const sourceStr =
+      typeof result.source === 'string'
+        ? result.source
+        : new TextDecoder().decode(result.source as ArrayBuffer)
+
+    return {
+      ...result,
+      source: wrapSourceWithTiming(sourceStr, url),
+    }
   }
 
   return result

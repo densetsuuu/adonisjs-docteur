@@ -9,8 +9,16 @@
 
 import Table from 'cli-table3'
 import pc from 'picocolors'
-import type { AppFileGroup, ProfileResult, ResolvedConfig } from '../types.js'
+import type { AppFileGroup, ModuleTiming, ProfileResult, ResolvedConfig } from '../types.js'
 import { filterModules, getTopSlowest, groupModulesByPackage, simplifyUrl } from './collector.js'
+import { match, P } from 'ts-pattern'
+
+/**
+ * Gets the effective load time for a module (execTime if available, otherwise loadTime)
+ */
+function getEffectiveTime(module: ModuleTiming): number {
+  return module.execTime ?? module.loadTime
+}
 
 /**
  * Icons for app file categories
@@ -48,16 +56,20 @@ function formatDuration(ms: number): string {
  */
 function colorDuration(ms: number): string {
   const formatted = formatDuration(ms)
-  if (ms >= 100) {
-    return pc.red(formatted)
-  }
-  if (ms >= 50) {
-    return pc.yellow(formatted)
-  }
-  if (ms >= 10) {
-    return pc.cyan(formatted)
-  }
-  return pc.green(formatted)
+  return match(ms)
+    .with(
+      P.when((value) => value >= 100),
+      () => pc.red(formatted)
+    )
+    .with(
+      P.when((value) => value >= 50),
+      () => pc.yellow(formatted)
+    )
+    .with(
+      P.when((value) => value >= 10),
+      () => pc.cyan(formatted)
+    )
+    .otherwise(() => pc.green(formatted))
 }
 
 /**
@@ -68,13 +80,20 @@ function createBar(ms: number, maxMs: number, width: number = 20): string {
   const filled = Math.round(ratio * width)
   const bar = '█'.repeat(filled) + '░'.repeat(width - filled)
 
-  if (ms >= 100) {
-    return pc.red(bar)
-  }
-  if (ms >= 50) {
-    return pc.yellow(bar)
-  }
-  return pc.green(bar)
+  return match(ms)
+    .with(
+      P.when((value) => value >= 100),
+      () => pc.red(bar)
+    )
+    .with(
+      P.when((value) => value >= 50),
+      () => pc.yellow(bar)
+    )
+    .with(
+      P.when((value) => value >= 10),
+      () => pc.cyan(bar)
+    )
+    .otherwise(() => pc.green(bar))
 }
 
 /**
@@ -148,7 +167,7 @@ export function printSlowestModules(
     return
   }
 
-  const maxTime = slowest[0]?.loadTime || 1
+  const maxTime = slowest[0] ? getEffectiveTime(slowest[0]) : 1
 
   console.log(pc.bold(`  🐢 Slowest Modules (top ${config.topModules})`))
   console.log()
@@ -179,11 +198,12 @@ export function printSlowestModules(
 
   slowest.forEach((module, index) => {
     const simplified = simplifyUrl(module.resolvedUrl, cwd)
+    const time = getEffectiveTime(module)
     table.push([
       pc.dim((index + 1).toString()),
       simplified.length > 48 ? simplified.slice(-48) : simplified,
-      colorDuration(module.loadTime),
-      createBar(module.loadTime, maxTime),
+      colorDuration(time),
+      createBar(time, maxTime),
     ])
   })
 
@@ -320,7 +340,7 @@ export function printRecommendations(result: ProfileResult, config: ResolvedConf
 
   // Check for slow individual modules
   const filtered = filterModules(result.modules, config)
-  const verySlowModules = filtered.filter((m) => m.loadTime > 100)
+  const verySlowModules = filtered.filter((m) => getEffectiveTime(m) > 100)
   if (verySlowModules.length > 0) {
     recommendations.push(
       `${verySlowModules.length} module(s) took over 100ms to load. Check for heavy initialization code.`
@@ -369,7 +389,7 @@ export function printAppFiles(result: ProfileResult, cwd: string): void {
  * Prints a single app file group
  */
 function printAppFileGroup(group: AppFileGroup, cwd: string): void {
-  const maxTime = group.files[0]?.loadTime || 1
+  const maxTime = group.files[0] ? getEffectiveTime(group.files[0]) : 1
 
   const table = new Table({
     chars: {
@@ -396,10 +416,11 @@ function printAppFileGroup(group: AppFileGroup, cwd: string): void {
   for (const file of group.files) {
     const simplified = simplifyUrl(file.resolvedUrl, cwd)
     const fileName = simplified.split('/').pop() || simplified
+    const time = getEffectiveTime(file)
     table.push([
       fileName.length > 43 ? fileName.slice(-43) : fileName,
-      colorDuration(file.loadTime),
-      createBar(file.loadTime, maxTime),
+      colorDuration(time),
+      createBar(time, maxTime),
     ])
   }
 

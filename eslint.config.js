@@ -1,3 +1,14 @@
 import { configPkg } from '@adonisjs/eslint-config'
 
-export default configPkg()
+const config = configPkg({
+  ignores: ['playground/.adonisjs/**'],
+})
+
+config.push({
+  files: ['playground/**/*.ts'],
+  rules: {
+    '@typescript-eslint/consistent-type-imports': 'off',
+  },
+})
+
+export default config

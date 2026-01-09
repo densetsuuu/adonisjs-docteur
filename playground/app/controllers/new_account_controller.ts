@@ -3,7 +3,7 @@ import { signupValidator } from '#validators/user'
 import type { HttpContext } from '@adonisjs/core/http'
 
 import { Get, Group, Post } from '@adonisjs-community/girouette'
-import { UserService } from '#services/users_service'
+import { type UserService } from '#services/users_service'
 import { inject } from '@adonisjs/core'
 
 /**

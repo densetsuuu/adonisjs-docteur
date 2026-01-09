@@ -16,6 +16,7 @@ import app from '@adonisjs/core/services/app'
 await girouette.controllers([
   () => import('#controllers/new_account_controller'),
   () => import('#controllers/session_controller'),
+  () => import('#controllers/slow_controller'),
 ])
 
 girouette.hmr(app.makePath('app/controllers'))

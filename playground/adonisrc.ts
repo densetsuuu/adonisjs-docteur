@@ -27,7 +27,7 @@ export default defineConfig({
   commands: [
     () => import('@adonisjs/core/commands'),
     () => import('@adonisjs/lucid/commands'),
-    () => import('docteur/commands/analyze'),
+    () => import('docteur/commands/diagnose'),
   ],
 
   /*
