@@ -2,7 +2,9 @@
   "extends": "@adonisjs/tsconfig/tsconfig.package.json",
   "compilerOptions": {
     "rootDir": "./",
-    "outDir": "./build"
+    "outDir": "./build",
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
   },
   "exclude": ["node_modules", "build", "playground"]
 }

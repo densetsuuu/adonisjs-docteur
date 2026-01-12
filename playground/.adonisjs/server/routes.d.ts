@@ -12,12 +12,14 @@ export type ScannedRoutes = {
     'new account.create': { paramsTuple?: []; params?: {} }
     'new account.store': { paramsTuple?: []; params?: {} }
     'new account.home': { paramsTuple?: []; params?: {} }
+    'slow.index': { paramsTuple?: []; params?: {} }
   }
   GET: {
     'new_account.create': { paramsTuple?: []; params?: {} }
     'session.create': { paramsTuple?: []; params?: {} }
     'new account.create': { paramsTuple?: []; params?: {} }
     'new account.home': { paramsTuple?: []; params?: {} }
+    'slow.index': { paramsTuple?: []; params?: {} }
   }
   HEAD: {
     'new_account.create': { paramsTuple?: []; params?: {} }

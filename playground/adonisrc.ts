@@ -28,6 +28,7 @@ export default defineConfig({
     () => import('@adonisjs/core/commands'),
     () => import('@adonisjs/lucid/commands'),
     () => import('docteur/commands/diagnose'),
+    () => import('docteur/commands/xray'),
   ],
 
   /*

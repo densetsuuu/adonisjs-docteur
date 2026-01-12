@@ -18,12 +18,14 @@ export async function configure(command: ConfigureCommand) {
   const codemods = await command.createCodemods()
 
   /**
-   * Register command
+   * Register commands
    */
   await codemods.updateRcFile((rcFile) => {
-    rcFile.addCommand('docteur/commands/analyze')
+    rcFile.addCommand('docteur/commands/diagnose')
+    rcFile.addCommand('docteur/commands/xray')
   })
 
   command.logger.success('Docteur configured successfully!')
-  command.logger.info('Run "node ace docteur:analyze" to profile your application')
+  command.logger.info('Run "node ace docteur:diagnose" to analyze cold start')
+  command.logger.info('Run "node ace docteur:xray" for interactive exploration')
 }
