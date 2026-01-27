@@ -192,6 +192,16 @@ The profiler uses two communication mechanisms:
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+## Profiling Overhead
+
+Docteur has **minimal overhead** (~5-10ms) thanks to its non-intrusive design. The profiler:
+
+- Uses ESM loader hooks to measure load times without modifying module source code
+- Batches IPC messages to minimize communication overhead
+- Only tracks `file://` modules (skips built-in Node.js modules)
+
+The timing values shown in the report reflect the actual load times of your modules. Since we measure at the loader level without source transformation, the overhead is negligible and doesn't affect the accuracy of the measurements.
+
 ## Requirements
 
 - AdonisJS v7+

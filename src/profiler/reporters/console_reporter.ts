@@ -167,7 +167,7 @@ export class ConsoleReporter implements Reporter {
     const sorted = [...result.providers].sort((a, b) => b.totalTime - a.totalTime)
     const maxTime = sorted[0]?.totalTime || 1
 
-    ui.logger.log(ui.colors.bold('  \u26A1 Provider Boot Times'))
+    ui.logger.log(ui.colors.bold('  \u26A1 Provider Lifecycle Times'))
     ui.logger.log('')
 
     const table = ui.table()
@@ -177,17 +177,19 @@ export class ConsoleReporter implements Reporter {
         ui.colors.dim('Provider'),
         ui.colors.dim('Register'),
         ui.colors.dim('Boot'),
+        ui.colors.dim('Total'),
         ui.colors.dim(''),
       ])
-      .columnWidths([6, 40, 12, 12, 35])
+      .columnWidths([5, 28, 11, 11, 11, 25])
 
     sorted.forEach((provider, index) => {
       table.row([
         ui.colors.dim((index + 1).toString()),
-        provider.name,
+        provider.name.length > 26 ? provider.name.slice(0, 26) : provider.name,
         colorDuration(provider.registerTime),
         colorDuration(provider.bootTime),
-        createBar(provider.totalTime, maxTime),
+        colorDuration(provider.totalTime),
+        createBar(provider.totalTime, maxTime, 22),
       ])
     })
 

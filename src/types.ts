@@ -22,14 +22,9 @@ export interface ModuleTiming {
   resolvedUrl: string
 
   /**
-   * Time in milliseconds to load the module source
+   * Time in milliseconds to load the module (file read + parse)
    */
   loadTime: number
-
-  /**
-   * Time in milliseconds to execute the module's top-level code
-   */
-  execTime?: number
 
   /**
    * Time in milliseconds to resolve the module specifier
@@ -72,7 +67,22 @@ export interface ProviderTiming {
   bootTime: number
 
   /**
-   * Total time (register + boot)
+   * Time in milliseconds for the start phase
+   */
+  startTime: number
+
+  /**
+   * Time in milliseconds for the ready phase
+   */
+  readyTime: number
+
+  /**
+   * Time in milliseconds for the shutdown phase
+   */
+  shutdownTime: number
+
+  /**
+   * Total time (register + boot + start + ready)
    */
   totalTime: number
 }
@@ -224,24 +234,6 @@ export interface DocteurConfig {
    * @default true
    */
   groupByPackage: boolean
-}
-
-/**
- * IPC message types for communication between processes
- */
-export type IpcMessage =
-  | { type: 'module'; data: ModuleTiming }
-  | { type: 'provider'; data: ProviderTiming }
-  | { type: 'ready'; data: { totalTime: number } }
-  | { type: 'error'; data: { message: string; stack?: string } }
-
-/**
- * Global store for collecting timing data
- */
-export interface TimingStore {
-  modules: Map<string, ModuleTiming>
-  providers: ProviderTiming[]
-  startTime: number
 }
 
 /**

@@ -37,10 +37,10 @@ export const categoryIcons: Record<string, string> = {
 }
 
 /**
- * Gets the effective load time for a module (execTime if available, otherwise loadTime)
+ * Gets the load time for a module
  */
 export function getEffectiveTime(module: ModuleTiming): number {
-  return module.execTime ?? module.loadTime
+  return module.loadTime
 }
 
 /**

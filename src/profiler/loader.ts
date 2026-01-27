@@ -15,14 +15,24 @@ const profileStartTime = performance.now()
 const { port1, port2 } = new MessageChannel()
 
 const parents = new Map<string, string>()
+const loadTimes = new Map<string, number>()
 
-// Listen for batched parent relationships from hooks
-type ParentData = { child: string; parent: string }
+// Provider timing data: Map<providerName, { register, boot, start, ready, shutdown }>
+const providerTimings = new Map<string, Record<string, number>>()
 
-port1.on('message', (message: { type: string; batch?: ParentData[] }) => {
-  if (message.type === 'parents' && message.batch) {
-    for (const { child, parent } of message.batch) {
-      parents.set(child, parent)
+type HookMessage =
+  | { type: 'parent'; child: string; parent: string }
+  | { type: 'timing'; url: string; loadTime: number }
+
+// Listen for batched messages from hooks
+port1.on('message', (message: { type: string; messages?: HookMessage[] }) => {
+  if (message.type === 'batch' && message.messages) {
+    for (const msg of message.messages) {
+      if (msg.type === 'parent') {
+        parents.set(msg.child, msg.parent)
+      } else if (msg.type === 'timing') {
+        loadTimes.set(msg.url, msg.loadTime)
+      }
     }
   }
 })
@@ -38,34 +48,54 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   var __docteur__: {
     startTime: number
-    getExecTimes: () => Map<string, number>
+    getLoadTimes: () => Map<string, number>
     getParents: () => Map<string, string>
     isEnabled: boolean
   }
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  var __docteurExecTimes: Map<string, number>
+  var __docteurReportProvider__: (name: string, phase: string, duration: number) => void
 }
-
-// Execution times are set directly by wrapped modules
-globalThis.__docteurExecTimes = new Map()
 
 globalThis.__docteur__ = {
   startTime: profileStartTime,
-  getExecTimes: () => globalThis.__docteurExecTimes,
+  getLoadTimes: () => loadTimes,
   getParents: () => parents,
   isEnabled: true,
+}
+
+// Global hook for providers to report their lifecycle timing
+globalThis.__docteurReportProvider__ = (name: string, phase: string, duration: number) => {
+  let timing = providerTimings.get(name)
+  if (!timing) {
+    timing = {}
+    providerTimings.set(name, timing)
+  }
+  timing[phase] = duration
 }
 
 if (process.send) {
   process.on('message', (message: { type: string }) => {
     if (message.type === 'getResults') {
+      // Convert provider timings to the expected format
+      const providers = Array.from(providerTimings.entries()).map(([name, timing]) => ({
+        name,
+        registerTime: timing.register || 0,
+        bootTime: timing.boot || 0,
+        startTime: timing.start || 0,
+        readyTime: timing.ready || 0,
+        shutdownTime: timing.shutdown || 0,
+        totalTime:
+          (timing.register || 0) + (timing.boot || 0) + (timing.start || 0) + (timing.ready || 0),
+      }))
+
       process.send!({
         type: 'results',
         data: {
           startTime: profileStartTime,
           endTime: performance.now(),
-          execTimes: Object.fromEntries(globalThis.__docteurExecTimes),
+          loadTimes: Object.fromEntries(loadTimes),
           parents: Object.fromEntries(parents),
+          providers,
         },
       })
     }

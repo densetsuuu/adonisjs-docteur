@@ -49,7 +49,7 @@ export class ProfileCollector {
   }
 
   #getEffectiveTime(module: ModuleTiming): number {
-    return module.execTime ?? module.loadTime
+    return module.loadTime
   }
 
   #categorizeModule(url: string): ModuleCategory {

@@ -13,18 +13,18 @@ const IGNORED_EXIT_CODES = [0, 137, 143] as const
 type ResultsData = {
   startTime: number
   endTime: number
-  execTimes: Record<string, number>
+  loadTimes: Record<string, number>
   parents: Record<string, string>
+  providers: ProviderTiming[]
 }
 
-type ProviderMessage = { type: 'provider'; data: ProviderTiming }
 type ResultsMessage = { type: 'results'; data: ResultsData }
 
 interface ProfilerState {
   providers: ProviderTiming[]
   startTime: number
   endTime: number
-  execTimes: Map<string, number>
+  loadTimes: Map<string, number>
   parents: Map<string, string>
   done: boolean
 }
@@ -87,7 +87,7 @@ export default abstract class BaseProfilerCommand extends BaseCommand {
         providers: [],
         startTime: 0,
         endTime: 0,
-        execTimes: new Map(),
+        loadTimes: new Map(),
         parents: new Map(),
         done: false,
       }
@@ -140,16 +140,14 @@ export default abstract class BaseProfilerCommand extends BaseCommand {
   }
 
   #onMessage(message: unknown, state: ProfilerState, complete: () => void) {
-    match(message as ProviderMessage | ResultsMessage | { type: string })
-      .with({ type: 'provider' }, (msg) => {
-        state.providers.push((msg as ProviderMessage).data)
-      })
+    match(message as ResultsMessage | { type: string })
       .with({ type: 'results' }, (msg) => {
         const data = (msg as ResultsMessage).data
         state.startTime = data.startTime
         state.endTime = data.endTime
-        state.execTimes = new Map(Object.entries(data.execTimes))
+        state.loadTimes = new Map(Object.entries(data.loadTimes))
         state.parents = new Map(Object.entries(data.parents || {}))
+        state.providers = data.providers || []
         complete()
       })
       .otherwise(() => {})
@@ -178,14 +176,13 @@ export default abstract class BaseProfilerCommand extends BaseCommand {
   }
 
   #buildResults(state: ProfilerState, cwd: string) {
-    const modules: ModuleTiming[] = [...state.execTimes].map(([url, execTime]) => ({
+    const modules: ModuleTiming[] = [...state.loadTimes].map(([url, loadTime]) => ({
       specifier: simplifyFileUrl(url, cwd),
       resolvedUrl: url,
-      loadTime: execTime,
+      loadTime,
       resolveTime: 0,
       startTime: 0,
       endTime: 0,
-      execTime,
       parentUrl: state.parents.get(url),
     }))
 

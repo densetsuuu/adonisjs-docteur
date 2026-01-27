@@ -16,7 +16,7 @@ export interface DependencyTree {
 }
 
 function getEffectiveTime(timing: ModuleTiming): number {
-  return timing.execTime ?? timing.loadTime
+  return timing.loadTime
 }
 
 /**

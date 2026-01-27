@@ -153,10 +153,8 @@ export function ModuleView({ node, tree: _tree, onNavigate, onBack }: Props) {
         <Text dimColor> Timing breakdown:</Text>
         <Text>
           {' '}
-          Load: {formatDuration(node.timing.loadTime)}
-          {node.timing.execTime !== undefined &&
-            ` | Exec: ${formatDuration(node.timing.execTime)}`}{' '}
-          | Resolve: {formatDuration(node.timing.resolveTime)}
+          Load: {formatDuration(node.timing.loadTime)} | Resolve:{' '}
+          {formatDuration(node.timing.resolveTime)}
         </Text>
       </Box>
 
