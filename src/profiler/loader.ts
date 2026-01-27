@@ -1,16 +1,29 @@
+/*
+|--------------------------------------------------------------------------
+| Profiler Loader
+|--------------------------------------------------------------------------
+|
+| Entry point for the profiler. Registers ESM hooks and collects timing data.
+|
+*/
+
 import { register } from 'node:module'
 import { performance } from 'node:perf_hooks'
 import { MessageChannel } from 'node:worker_threads'
 
-import type { ModuleTiming } from '../types.js'
-
 const profileStartTime = performance.now()
 const { port1, port2 } = new MessageChannel()
-const moduleTimings: ModuleTiming[] = []
 
-port1.on('message', (message: { type: string; data: ModuleTiming }) => {
-  if (message.type === 'module') {
-    moduleTimings.push(message.data)
+const parents = new Map<string, string>()
+
+// Listen for batched parent relationships from hooks
+type ParentData = { child: string; parent: string }
+
+port1.on('message', (message: { type: string; batch?: ParentData[] }) => {
+  if (message.type === 'parents' && message.batch) {
+    for (const { child, parent } of message.batch) {
+      parents.set(child, parent)
+    }
   }
 })
 ;(port1 as unknown as { unref?: () => void }).unref?.()
@@ -25,40 +38,34 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   var __docteur__: {
     startTime: number
-    getTimings: () => ModuleTiming[]
+    getExecTimes: () => Map<string, number>
+    getParents: () => Map<string, string>
     isEnabled: boolean
   }
   // eslint-disable-next-line @typescript-eslint/naming-convention
   var __docteurExecTimes: Map<string, number>
 }
 
-// Set up global exec times map before any modules load
+// Execution times are set directly by wrapped modules
 globalThis.__docteurExecTimes = new Map()
-
-function getTimingsWithExecTimes(): ModuleTiming[] {
-  return moduleTimings.map((timing) => {
-    const execTime = globalThis.__docteurExecTimes.get(timing.resolvedUrl)
-    return execTime !== undefined ? { ...timing, execTime } : timing
-  })
-}
 
 globalThis.__docteur__ = {
   startTime: profileStartTime,
-  getTimings: getTimingsWithExecTimes,
+  getExecTimes: () => globalThis.__docteurExecTimes,
+  getParents: () => parents,
   isEnabled: true,
 }
 
 if (process.send) {
   process.on('message', (message: { type: string }) => {
     if (message.type === 'getResults') {
-      const endTime = performance.now()
       process.send!({
         type: 'results',
         data: {
           startTime: profileStartTime,
-          endTime,
-          totalTime: endTime - profileStartTime,
-          modules: getTimingsWithExecTimes(),
+          endTime: performance.now(),
+          execTimes: Object.fromEntries(globalThis.__docteurExecTimes),
+          parents: Object.fromEntries(parents),
         },
       })
     }

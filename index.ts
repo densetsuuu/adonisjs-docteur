@@ -38,16 +38,15 @@ export {
 } from './src/profiler/collector.js'
 
 /**
- * Export reporter for custom reporting
+ * Export reporters for custom reporting
  */
+export type { Reporter, ReportContext } from './src/profiler/reporters/base_reporter.js'
+export { ConsoleReporter } from './src/profiler/reporters/console_reporter.js'
+export { TuiReporter } from './src/profiler/reporters/tui_reporter.js'
 export {
-  printReport,
-  printHeader,
-  printSummary,
-  printAppFiles,
-  printSlowestModules,
-  printPackageGroups,
-  printProviders,
-  printRecommendations,
-  printFooter,
-} from './src/profiler/reporter.js'
+  categoryIcons,
+  colorDuration,
+  createBar,
+  formatDuration,
+  getEffectiveTime,
+} from './src/profiler/reporters/format.js'

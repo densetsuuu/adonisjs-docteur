@@ -5,7 +5,6 @@ import type { DependencyTree, ModuleNode } from '../tree.js'
 import {
   formatDuration,
   getEffectiveTime,
-  getSubtreeTime,
   getImportChain,
   getFileIcon,
   getSourceIcon,
@@ -83,9 +82,11 @@ export function ModuleView({ node, tree: _tree, onNavigate, onBack }: Props) {
       })
     }
 
-    // Children (what it imports) - sorted by subtree time (slowest first)
+    // Children (what it imports) - sorted by own time (slowest first)
     if (node.children.length > 0) {
-      const sortedChildren = [...node.children].sort((a, b) => getSubtreeTime(b) - getSubtreeTime(a))
+      const sortedChildren = [...node.children].sort(
+        (a, b) => getEffectiveTime(b.timing) - getEffectiveTime(a.timing)
+      )
       result.push({
         key: 'sep-imports',
         label: `--- What it imports (${node.children.length} modules) ---`,
@@ -93,7 +94,7 @@ export function ModuleView({ node, tree: _tree, onNavigate, onBack }: Props) {
       })
       for (let i = 0; i < Math.min(sortedChildren.length, 15); i++) {
         const child = sortedChildren[i]
-        const childTime = getSubtreeTime(child)
+        const childTime = getEffectiveTime(child.timing)
         const childFileIcon = getFileIcon(child.timing.resolvedUrl)
         const childSourceIcon = getSourceIcon(child.timing.resolvedUrl)
         result.push({

@@ -1,8 +1,14 @@
-import { performance } from 'node:perf_hooks'
+/*
+|--------------------------------------------------------------------------
+| Module Loader Hooks
+|--------------------------------------------------------------------------
+|
+| ESM loader hooks for measuring module execution times.
+| Wraps modules with timing code to measure actual execution duration.
+|
+*/
 
 import type { MessagePort } from 'node:worker_threads'
-
-import type { ModuleTiming } from '../types.js'
 
 interface ResolveContext {
   conditions: string[]
@@ -30,50 +36,58 @@ type NextLoad = (
   shortCircuit?: boolean
 }>
 
-const timings = new Map<string, Partial<ModuleTiming>>()
-const resolveTimings = new Map<string, number>()
+let port: MessagePort | null = null
+const pendingParents: Array<{ child: string; parent: string }> = []
+let flushScheduled = false
+const textDecoder = new TextDecoder()
 
-let messagePort: MessagePort | null = null
-
-export function initialize(data: { port: MessagePort }) {
-  messagePort = data.port
+function flush() {
+  flushScheduled = false
+  if (pendingParents.length > 0 && port) {
+    port.postMessage({ type: 'parents', batch: pendingParents.splice(0) })
+  }
 }
 
+function queueParent(child: string, parent: string) {
+  pendingParents.push({ child, parent })
+  if (!flushScheduled) {
+    flushScheduled = true
+    setImmediate(flush)
+  }
+}
+
+export function initialize(data: { port: MessagePort }) {
+  port = data.port
+}
+
+/**
+ * Resolve hook - tracks parent-child relationships.
+ */
 export async function resolve(
   specifier: string,
   context: ResolveContext,
   nextResolve: NextResolve
 ): Promise<{ url: string; format?: string; shortCircuit?: boolean }> {
-  const startTime = performance.now()
   const result = await nextResolve(specifier, context)
-  const resolveTime = performance.now() - startTime
 
-  resolveTimings.set(result.url, resolveTime)
-
-  const existing = timings.get(result.url) || {}
-  timings.set(result.url, {
-    ...existing,
-    specifier,
-    resolvedUrl: result.url,
-    resolveTime,
-    parentUrl: context.parentURL,
-  })
+  if (context.parentURL && result.url.startsWith('file://')) {
+    queueParent(result.url, context.parentURL)
+  }
 
   return result
 }
 
-function isUserModule(url: string): boolean {
-  return url.startsWith('file://') && !url.includes('node_modules')
-}
-
-function wrapSourceWithTiming(source: string, url: string): string {
+/**
+ * Wraps module source with execution timing.
+ */
+function wrapWithTiming(source: string, url: string): string {
   const escapedUrl = url.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
-  return `const __docteurExecStart = performance.now();
-${source}
-globalThis.__docteurExecTimes?.set('${escapedUrl}', performance.now() - __docteurExecStart);
-`
+  return `const __t=performance.now();${source};globalThis.__docteurExecTimes?.set('${escapedUrl}',performance.now()-__t);`
 }
 
+/**
+ * Load hook - wraps file:// modules with execution timing.
+ */
 export async function load(
   url: string,
   context: LoadContext,
@@ -83,42 +97,19 @@ export async function load(
   source: string | ArrayBuffer | SharedArrayBuffer
   shortCircuit?: boolean
 }> {
-  const startTime = performance.now()
+  if (!url.startsWith('file://')) {
+    return nextLoad(url, context)
+  }
+
   const result = await nextLoad(url, context)
-  const endTime = performance.now()
-  const loadTime = endTime - startTime
 
-  const existing = timings.get(url) || {}
-  const timing: ModuleTiming = {
-    specifier: existing.specifier || url,
-    resolvedUrl: url,
-    loadTime,
-    resolveTime: existing.resolveTime || resolveTimings.get(url) || 0,
-    parentUrl: existing.parentUrl,
-    startTime,
-    endTime,
-  }
-
-  timings.set(url, timing)
-
-  if (messagePort) {
-    messagePort.postMessage({
-      type: 'module',
-      data: timing,
-    })
-  }
-
-  // Inject execution timing code into user modules
-  if (isUserModule(url) && result.source && result.format === 'module') {
+  if (result.source && result.format === 'module') {
     const sourceStr =
       typeof result.source === 'string'
         ? result.source
-        : new TextDecoder().decode(result.source as ArrayBuffer)
+        : textDecoder.decode(result.source as ArrayBuffer)
 
-    return {
-      ...result,
-      source: wrapSourceWithTiming(sourceStr, url),
-    }
+    return { ...result, source: wrapWithTiming(sourceStr, url) }
   }
 
   return result

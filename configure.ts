@@ -21,8 +21,7 @@ export async function configure(command: ConfigureCommand) {
    * Register commands
    */
   await codemods.updateRcFile((rcFile) => {
-    rcFile.addCommand('docteur/commands/diagnose')
-    rcFile.addCommand('docteur/commands/xray')
+    rcFile.addCommand('docteur/commands')
   })
 
   command.logger.success('Docteur configured successfully!')
