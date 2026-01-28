@@ -85,7 +85,12 @@
     "typescript": "^5.4.5"
   },
   "peerDependencies": {
-    "@adonisjs/application": ">=9.0.0"
+    "@adonisjs/application": ">=9.0.0-0"
+  },
+  "peerDependenciesMeta": {
+    "@adonisjs/application": {
+      "optional": true
+    }
   },
   "publishConfig": {
     "access": "public",
