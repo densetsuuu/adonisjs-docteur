@@ -1,7 +1,7 @@
 {
   "name": "@densetsuuu/docteur",
   "description": "AdonisJS cold start profiler - analyze and optimize your application boot time",
-  "version": "0.1.1-beta.0",
+  "version": "0.1.1-beta.1",
   "engines": {
     "node": ">=21.0.0"
   },
