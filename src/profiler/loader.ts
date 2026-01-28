@@ -8,10 +8,23 @@
 |
 */
 
-import { tracingChannels } from '@adonisjs/application'
 import { register } from 'node:module'
 import { performance } from 'node:perf_hooks'
 import { MessageChannel } from 'node:worker_threads'
+
+type TracingChannel = {
+  subscribe(handlers: {
+    start(msg: unknown): void
+    end(msg: unknown): void
+    asyncStart(msg: unknown): void
+    asyncEnd(msg: unknown): void
+    error(): void
+  }): void
+}
+
+const { tracingChannels } = (await import('@adonisjs/application')) as {
+  tracingChannels: Record<string, TracingChannel>
+}
 
 // Module timing data from hooks
 const parents = new Map<string, string>()
@@ -48,12 +61,9 @@ register('./hooks.js', {
 // For async methods: start -> end -> asyncStart -> asyncEnd (we wait for asyncEnd)
 // For sync methods: start -> end (we record on end, but defer to check if async fires)
 
-function subscribePhase(
-  channel: (typeof tracingChannels)[keyof typeof tracingChannels],
-  phase: string
-) {
-  const getName = (msg: { provider: { constructor: { name: string } } }) =>
-    msg.provider.constructor.name
+function subscribePhase(channel: TracingChannel, phase: string) {
+  const getName = (msg: unknown) =>
+    (msg as { provider: { constructor: { name: string } } }).provider.constructor.name
 
   channel.subscribe({
     start(msg) {
