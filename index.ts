@@ -7,8 +7,6 @@
 |
 */
 
-export { configure } from './configure.js'
-
 /**
  * Export types for consumers
  */
@@ -22,6 +20,11 @@ export type {
   AppFileCategory,
   AppFileGroup,
 } from './src/types.js'
+
+/**
+ * Export profiler for programmatic usage
+ */
+export { profile, isAdonisProject, findEntryPoint } from './src/profiler/profiler.js'
 
 /**
  * Export collector class for advanced usage
@@ -49,6 +52,7 @@ export {
  */
 export {
   categories,
+  fileIcons,
   symbols,
   type CategoryDefinition,
   type SymbolKey,

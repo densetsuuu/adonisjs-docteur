@@ -71,12 +71,14 @@ export function createBar(ms: number, maxMs: number, width: number = 30): string
  * Simplifies a module URL for display:
  * - Strips file:// protocol
  * - Converts absolute paths to relative (using cwd)
- * - For node_modules, shows only the package path
+ * - For node_modules, shows only the package path (handles pnpm store)
  */
 export function simplifyUrl(url: string, cwd: string): string {
   const withoutProtocol = url.replace(/^file:\/\//, '')
 
-  const nodeModulesIndex = withoutProtocol.indexOf('node_modules/')
+  // Use lastIndexOf to handle pnpm store paths like:
+  // .pnpm/@pkg@version/node_modules/@scope/pkg/index.js
+  const nodeModulesIndex = withoutProtocol.lastIndexOf('node_modules/')
   if (nodeModulesIndex !== -1) {
     return withoutProtocol.slice(nodeModulesIndex + 'node_modules/'.length)
   }

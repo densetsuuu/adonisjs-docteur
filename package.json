@@ -1,32 +1,32 @@
 {
-  "name": "docteur",
+  "name": "@densetsuuu/docteur",
   "description": "AdonisJS cold start profiler - analyze and optimize your application boot time",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "engines": {
     "node": ">=20.6.0"
   },
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
   "type": "module",
+  "bin": {
+    "docteur": "./build/src/cli/main.js"
+  },
   "files": [
     "build/src",
-    "build/providers",
-    "build/commands",
-    "build/stubs",
     "build/index.d.ts",
-    "build/index.js",
-    "build/configure.d.ts",
-    "build/configure.js"
+    "build/index.js"
   ],
   "exports": {
-    ".": "./build/index.js",
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js"
+    },
     "./types": "./build/src/types.js",
-    "./commands": "./build/commands/main.js",
-    "./providers/*": "./build/providers/*.js",
     "./profiler/loader": "./build/src/profiler/loader.js",
     "./profiler/hooks": "./build/src/profiler/hooks.js"
   },
   "scripts": {
     "clean": "del-cli build",
-    "copy:templates": "copyfiles \"stubs/**/*.stub\" build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -34,8 +34,7 @@
     "pretest": "npm run lint",
     "test": "c8 npm run quick:test",
     "prebuild": "npm run lint && npm run clean",
-    "index:commands": "adonis-kit index build/commands",
-    "build": "pnpm clean && tsc && pnpm copy:templates && pnpm index:commands",
+    "build": "tsc",
     "release": "np",
     "version": "npm run build",
     "prepublishOnly": "npm run build"
@@ -47,21 +46,28 @@
     "cold-start",
     "performance",
     "diagnostics",
-    "boot-time"
+    "boot-time",
+    "cli"
   ],
-  "author": "",
+  "author": "Densetsuuu",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/densetsuuu/docteur.git"
+  },
+  "bugs": {
+    "url": "https://github.com/densetsuuu/docteur/issues"
+  },
+  "homepage": "https://github.com/densetsuuu/docteur#readme",
   "dependencies": {
     "@poppinss/cliui": "^6.6.0",
+    "citty": "^0.2.0",
     "ink": "^5.2.1",
     "ink-select-input": "^6.2.0",
-    "react": "^18.3.1",
-    "ts-pattern": "^5.6.0"
+    "react": "^18.3.1"
   },
   "devDependencies": {
     "@adonisjs/application": "9.0.0-next.15",
-    "@adonisjs/assembler": "^8.0.0-next.28",
-    "@adonisjs/core": "^7.0.0-next.20",
     "@adonisjs/eslint-config": "^3.0.0-next.9",
     "@adonisjs/prettier-config": "^1.4.5",
     "@adonisjs/tsconfig": "^2.0.0-next.3",
@@ -71,7 +77,6 @@
     "@types/node": "^25.0.3",
     "@types/react": "^18.3.27",
     "c8": "^10.1.2",
-    "copyfiles": "^2.4.1",
     "del-cli": "^5.1.0",
     "eslint": "^9.15.0",
     "np": "^10.0.6",
@@ -80,7 +85,7 @@
     "typescript": "^5.4.5"
   },
   "peerDependencies": {
-    "@adonisjs/core": "^7.0.0-next.20"
+    "@adonisjs/application": ">=9.0.0"
   },
   "publishConfig": {
     "access": "public",

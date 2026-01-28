@@ -1,67 +1,118 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useApp, useInput, useStdout } from 'ink'
-import type { ProfileResult } from '../../types.js'
+import type { ProfileResult, ProviderTiming } from '../../types.js'
 import { buildDependencyTree, type ModuleNode, type DependencyTree } from '../tree.js'
 import { ListView } from './ListView.js'
 import { ModuleView } from './ModuleView.js'
+import { ProviderListView } from './ProviderListView.js'
+import { ProviderView } from './ProviderView.js'
 
 interface Props {
   result: ProfileResult
   cwd: string
 }
 
+type View = 'modules' | 'providers'
+
 export function XRayApp({ result, cwd }: Props) {
   const { exit } = useApp()
   const { write } = useStdout()
-  const [history, setHistory] = useState<ModuleNode[]>([])
+  const [view, setView] = useState<View>('modules')
+  const [moduleHistory, setModuleHistory] = useState<ModuleNode[]>([])
+  const [selectedProvider, setSelectedProvider] = useState<ProviderTiming | null>(null)
 
   const tree: DependencyTree = useMemo(
     () => buildDependencyTree(result.modules, cwd),
     [result.modules, cwd]
   )
 
-  const currentNode = history.length > 0 ? history[history.length - 1] : null
+  const currentModule = moduleHistory.length > 0 ? moduleHistory[moduleHistory.length - 1] : null
 
   const clearScreen = useCallback(() => {
-    // ANSI escape codes: clear screen and move cursor to top-left
     write('\x1b[2J\x1b[H')
   }, [write])
 
-  const navigateTo = (node: ModuleNode) => {
+  const navigateToModule = (node: ModuleNode) => {
     clearScreen()
-    setHistory([...history, node])
+    setModuleHistory([...moduleHistory, node])
   }
 
   const goBack = () => {
-    if (history.length > 0) {
-      clearScreen()
-      setHistory(history.slice(0, -1))
+    clearScreen()
+    if (selectedProvider) {
+      setSelectedProvider(null)
+    } else if (moduleHistory.length > 0) {
+      setModuleHistory(moduleHistory.slice(0, -1))
     }
+  }
+
+  const switchView = (newView: View) => {
+    clearScreen()
+    setView(newView)
+    setModuleHistory([])
+    setSelectedProvider(null)
   }
 
   useInput((input, key) => {
     if (input === 'q') {
       exit()
     }
-    // Left arrow or backspace to go back
     if (key.leftArrow || key.backspace || key.delete) {
-      if (history.length > 0) {
+      if (selectedProvider || moduleHistory.length > 0) {
         goBack()
       }
     }
-    // ESC only exits from home list
     if (key.escape) {
-      if (history.length > 0) {
+      if (selectedProvider || moduleHistory.length > 0) {
         goBack()
       } else {
         exit()
       }
     }
+    // Tab to switch between views (when at root)
+    if (key.tab && !currentModule && !selectedProvider) {
+      switchView(view === 'modules' ? 'providers' : 'modules')
+    }
   })
 
-  if (currentNode) {
-    return <ModuleView node={currentNode} tree={tree} onNavigate={navigateTo} onBack={goBack} />
+  // Provider detail view
+  if (selectedProvider) {
+    return <ProviderView provider={selectedProvider} onBack={goBack} />
   }
 
-  return <ListView tree={tree} onSelect={navigateTo} />
+  // Module detail view
+  if (currentModule) {
+    return (
+      <ModuleView
+        node={currentModule}
+        tree={tree}
+        onNavigate={navigateToModule}
+        onBack={goBack}
+      />
+    )
+  }
+
+  // Providers list view
+  if (view === 'providers') {
+    return (
+      <ProviderListView
+        providers={result.providers}
+        onSelect={(p) => {
+          clearScreen()
+          setSelectedProvider(p)
+        }}
+        onSwitchToModules={() => switchView('modules')}
+      />
+    )
+  }
+
+  // Modules list view (default)
+  return (
+    <ListView
+      tree={tree}
+      onSelect={navigateToModule}
+      onSwitchToProviders={() => switchView('providers')}
+      hasProviders={result.providers.length > 0}
+    />
+  )
 }

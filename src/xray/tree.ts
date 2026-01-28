@@ -1,5 +1,16 @@
+/*
+|--------------------------------------------------------------------------
+| Dependency Tree
+|--------------------------------------------------------------------------
+|
+| Builds a tree structure from module timings for the xray TUI.
+| Provides utilities for traversing and displaying the tree.
+|
+*/
+
 import type { ModuleTiming } from '../types.js'
 import { formatDuration, getEffectiveTime, simplifyUrl } from '../profiler/reporters/format.js'
+import { fileIcons, symbols } from '../profiler/registries/index.js'
 
 export interface ModuleNode {
   timing: ModuleTiming
@@ -15,25 +26,11 @@ export interface DependencyTree {
   sortedByTime: ModuleNode[]
 }
 
-/**
- * Get the total time for a module including all its transitive dependencies.
- * This represents the actual impact of importing this module.
- */
-export function getSubtreeTime(node: ModuleNode, seen = new Set<ModuleNode>()): number {
-  if (seen.has(node)) return 0 // Prevent cycles
-  seen.add(node)
-  const ownTime = getEffectiveTime(node.timing)
-  let childrenTime = 0
-  for (const child of node.children) {
-    childrenTime += getSubtreeTime(child, seen)
-  }
-  return ownTime + childrenTime
-}
-
 export function buildDependencyTree(modules: ModuleTiming[], cwd: string): DependencyTree {
   const nodeMap = new Map<string, ModuleNode>()
+  const time = (n: ModuleNode) => getEffectiveTime(n.timing)
 
-  // Pass 1: Create all nodes
+  // Create all nodes
   for (const timing of modules) {
     nodeMap.set(timing.resolvedUrl, {
       timing,
@@ -43,7 +40,6 @@ export function buildDependencyTree(modules: ModuleTiming[], cwd: string): Depen
     })
   }
 
-  // Pass 2: Link parent-child relationships
   for (const node of nodeMap.values()) {
     const parentUrl = node.timing.parentUrl
     if (parentUrl && nodeMap.has(parentUrl)) {
@@ -53,35 +49,30 @@ export function buildDependencyTree(modules: ModuleTiming[], cwd: string): Depen
     }
   }
 
-  // Pass 3: Calculate depths and identify roots
+  // Calculate depths and identify roots
   const roots: ModuleNode[] = []
+  const setDepths = (node: ModuleNode, depth: number, seen = new Set<ModuleNode>()) => {
+    if (seen.has(node)) return
+    seen.add(node)
+    node.depth = depth
+    for (const child of node.children) setDepths(child, depth + 1, seen)
+  }
+
   for (const node of nodeMap.values()) {
     if (!node.parent) {
       roots.push(node)
-      calculateDepths(node, 0)
+      setDepths(node, 0)
     }
   }
 
-  // Sort children by effective time (slowest first)
+  // Sort children by time (slowest first)
   for (const node of nodeMap.values()) {
-    node.children.sort((a, b) => getEffectiveTime(b.timing) - getEffectiveTime(a.timing))
+    node.children.sort((a, b) => time(b) - time(a))
   }
 
-  // Sort all nodes by effective time
-  const sortedByTime = Array.from(nodeMap.values()).sort(
-    (a, b) => getEffectiveTime(b.timing) - getEffectiveTime(a.timing)
-  )
+  const sortedByTime = [...nodeMap.values()].sort((a, b) => time(b) - time(a))
 
   return { nodeMap, roots, sortedByTime }
-}
-
-function calculateDepths(node: ModuleNode, depth: number, seen = new Set<ModuleNode>()): void {
-  if (seen.has(node)) return // Prevent cycles
-  seen.add(node)
-  node.depth = depth
-  for (const child of node.children) {
-    calculateDepths(child, depth + 1, seen)
-  }
 }
 
 export function getImportChain(node: ModuleNode): ModuleNode[] {
@@ -100,31 +91,7 @@ export function getImportChain(node: ModuleNode): ModuleNode[] {
 
 export function getFileIcon(url: string): string {
   const ext = url.split('.').pop()?.toLowerCase() || ''
-  switch (ext) {
-    case 'ts':
-    case 'tsx':
-      return '\ue628' //
-    case 'js':
-    case 'jsx':
-      return '\ue781' //
-    case 'json':
-      return '\ue60b' //
-    case 'mjs':
-    case 'cjs':
-      return '\ue718' //
-    case 'vue':
-      return '\ue6a0' //
-    case 'css':
-    case 'scss':
-    case 'sass':
-      return '\ue749' //
-    case 'html':
-      return '\ue736' //
-    case 'md':
-      return '\ue73e' //
-    default:
-      return '\uf15b' //
-  }
+  return fileIcons[ext] || fileIcons.default
 }
 
 export type TimeColor = 'red' | 'yellow' | 'cyan' | 'green'
@@ -136,19 +103,12 @@ export function getTimeColor(ms: number): TimeColor {
   return 'green'
 }
 
-/**
- * Check if a module URL is a dependency (from node_modules) vs a project file.
- */
 export function isDependency(url: string): boolean {
   return url.includes('/node_modules/')
 }
 
-/**
- * Get an icon indicating whether the module is a project file or dependency.
- */
 export function getSourceIcon(url: string): string {
-  return isDependency(url) ? '\uf487' : '\uf015' //  (package) vs  (home)
+  return isDependency(url) ? symbols.sourcePackage : symbols.sourceHome
 }
 
-// Re-export formatting utilities for convenience
 export { formatDuration, getEffectiveTime }

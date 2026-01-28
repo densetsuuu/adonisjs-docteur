@@ -52,6 +52,28 @@ export const symbols = {
   arrowLeft: '\u2190', // ←
   arrowUp: '\u2191', // ↑
   arrowDown: '\u2193', // ↓
+
+  // Nerd Font source icons (for TUI)
+  sourcePackage: '\uf487',
+  sourceHome: '\uf015',
 } as const
+
+// Nerd Font file icons by extension
+export const fileIcons: Record<string, string> = {
+  ts: '\ue628',
+  tsx: '\ue628',
+  js: '\ue781',
+  jsx: '\ue781',
+  mjs: '\ue718',
+  cjs: '\ue718',
+  json: '\ue60b',
+  vue: '\ue6a0',
+  css: '\ue749',
+  scss: '\ue749',
+  sass: '\ue749',
+  html: '\ue736',
+  md: '\ue73e',
+  default: '\uf15b',
+}
 
 export type SymbolKey = keyof typeof symbols

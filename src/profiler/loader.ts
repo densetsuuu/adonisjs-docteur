@@ -3,8 +3,8 @@
 | Profiler Loader
 |--------------------------------------------------------------------------
 |
-| Entry point for the profiler. Registers ESM hooks and subscribes to
-| AdonisJS tracing channels for provider lifecycle timing.
+| Registers ESM hooks for module timing and subscribes to AdonisJS
+| tracing channels for provider lifecycle timing.
 |
 */
 
@@ -13,34 +13,30 @@ import { register } from 'node:module'
 import { performance } from 'node:perf_hooks'
 import { MessageChannel } from 'node:worker_threads'
 
-const { port1, port2 } = new MessageChannel()
-
+// Module timing data from hooks
 const parents = new Map<string, string>()
 const loadTimes = new Map<string, number>()
 
-// Provider timing data: Map<providerName, { register, boot, start, ready, shutdown }>
-const providerTimings = new Map<string, Record<string, number>>()
+// Provider timing data
+const providerPhases = new Map<string, Record<string, number>>()
+const providerStarts = new Map<string, number>()
+const asyncCalls = new Set<string>()
 
-// Track provider start times for calculating durations
-const providerStartTimes = new Map<string, number>()
+// Set up message channel for hooks
+const { port1, port2 } = new MessageChannel()
+;(port1 as { unref?: () => void }).unref?.()
 
-type HookMessage =
-  | { type: 'parent'; child: string; parent: string }
-  | { type: 'timing'; url: string; loadTime: number }
+port1.on(
+  'message',
+  (msg: { type: string; messages?: { type: string; [k: string]: unknown }[] }) => {
+    if (msg.type !== 'batch' || !msg.messages) return
 
-// Listen for batched messages from hooks
-port1.on('message', (message: { type: string; messages?: HookMessage[] }) => {
-  if (message.type === 'batch' && message.messages) {
-    for (const msg of message.messages) {
-      if (msg.type === 'parent') {
-        parents.set(msg.child, msg.parent)
-      } else if (msg.type === 'timing') {
-        loadTimes.set(msg.url, msg.loadTime)
-      }
+    for (const m of msg.messages) {
+      if (m.type === 'parent') parents.set(m.child as string, m.parent as string)
+      else if (m.type === 'timing') loadTimes.set(m.url as string, m.loadTime as number)
     }
   }
-})
-;(port1 as unknown as { unref?: () => void }).unref?.()
+)
 
 register('./hooks.js', {
   parentURL: import.meta.url,
@@ -48,106 +44,86 @@ register('./hooks.js', {
   transferList: [port2],
 })
 
-/**
- * Helper to record timing for a provider lifecycle phase.
- */
-function recordTiming(providerName: string, phase: string, duration: number) {
-  let timing = providerTimings.get(providerName)
-  if (!timing) {
-    timing = {}
-    providerTimings.set(providerName, timing)
-  }
-  timing[phase] = duration
-}
+// Subscribe to provider lifecycle phases
+// For async methods: start -> end -> asyncStart -> asyncEnd (we wait for asyncEnd)
+// For sync methods: start -> end (we record on end, but defer to check if async fires)
 
-/**
- * Subscribe to AdonisJS provider tracing channels.
- * Uses the exported tracingChannels from @adonisjs/application.
- */
+function subscribePhase(
+  channel: (typeof tracingChannels)[keyof typeof tracingChannels],
+  phase: string
+) {
+  const getName = (msg: { provider: { constructor: { name: string } } }) =>
+    msg.provider.constructor.name
 
-// Empty handler for unused events
-const noop = () => {}
-
-// Track which calls are async (so we don't record timing on `end` for async calls)
-const asyncCalls = new Set<string>()
-
-/**
- * Creates subscriber handlers for a provider lifecycle phase.
- * Handles both sync (end) and async (asyncEnd) completions.
- *
- * For async functions, Node.js emits: start -> end -> asyncStart -> asyncEnd
- * We need to wait for asyncEnd to get the full duration, not end.
- */
-function createPhaseSubscriber(phase: string) {
-  return {
-    start(message: { provider: { constructor: { name: string } } }) {
-      const name = message.provider.constructor.name
-      providerStartTimes.set(`${name}:${phase}`, performance.now())
+  channel.subscribe({
+    start(msg) {
+      providerStarts.set(`${getName(msg)}:${phase}`, performance.now())
     },
-    end(message: { provider: { constructor: { name: string } } }) {
-      const name = message.provider.constructor.name
+    end(msg) {
+      const name = getName(msg)
       const key = `${name}:${phase}`
       const endTime = performance.now()
-      // Only record on `end` if this is NOT an async call
-      // (asyncStart hasn't fired yet, so we check on next tick)
+
+      // Defer to check if this becomes async (asyncStart fires before our setTimeout)
       setTimeout(() => {
-        if (!asyncCalls.has(key)) {
-          const startTime = providerStartTimes.get(key)
-          if (startTime !== undefined) {
-            recordTiming(name, phase, endTime - startTime)
-            providerStartTimes.delete(key)
-          }
+        if (asyncCalls.has(key)) return
+        const start = providerStarts.get(key)
+        if (start !== undefined) {
+          const phases = providerPhases.get(name) || {}
+          phases[phase] = endTime - start
+          providerPhases.set(name, phases)
+          providerStarts.delete(key)
         }
       }, 0)
     },
-    asyncStart(message: { provider: { constructor: { name: string } } }) {
-      const name = message.provider.constructor.name
-      asyncCalls.add(`${name}:${phase}`)
+    asyncStart(msg) {
+      asyncCalls.add(`${getName(msg)}:${phase}`)
     },
-    asyncEnd(message: { provider: { constructor: { name: string } } }) {
-      const name = message.provider.constructor.name
+    asyncEnd(msg) {
+      const name = getName(msg)
       const key = `${name}:${phase}`
-      const startTime = providerStartTimes.get(key)
-      if (startTime !== undefined) {
-        recordTiming(name, phase, performance.now() - startTime)
-        providerStartTimes.delete(key)
+      const start = providerStarts.get(key)
+
+      if (start !== undefined) {
+        const phases = providerPhases.get(name) || {}
+        phases[phase] = performance.now() - start
+        providerPhases.set(name, phases)
+        providerStarts.delete(key)
       }
       asyncCalls.delete(key)
     },
-    error: noop,
-  }
+    error() {},
+  })
 }
 
-// Subscribe to all provider lifecycle phases (each can be sync or async)
-tracingChannels.providerRegister.subscribe(createPhaseSubscriber('register'))
-tracingChannels.providerBoot.subscribe(createPhaseSubscriber('boot'))
-tracingChannels.providerStart.subscribe(createPhaseSubscriber('start'))
-tracingChannels.providerReady.subscribe(createPhaseSubscriber('ready'))
-tracingChannels.providerShutdown.subscribe(createPhaseSubscriber('shutdown'))
+subscribePhase(tracingChannels.providerRegister, 'register')
+subscribePhase(tracingChannels.providerBoot, 'boot')
+subscribePhase(tracingChannels.providerStart, 'start')
+subscribePhase(tracingChannels.providerReady, 'ready')
+subscribePhase(tracingChannels.providerShutdown, 'shutdown')
 
+// Send results to parent process when requested
 if (process.send) {
-  process.on('message', (message: { type: string }) => {
-    if (message.type === 'getResults') {
-      // Convert provider timings to the expected format
-      const providers = Array.from(providerTimings.entries()).map(([name, timing]) => ({
-        name,
-        registerTime: timing.register || 0,
-        bootTime: timing.boot || 0,
-        startTime: timing.start || 0,
-        readyTime: timing.ready || 0,
-        shutdownTime: timing.shutdown || 0,
-        totalTime:
-          (timing.register || 0) + (timing.boot || 0) + (timing.start || 0) + (timing.ready || 0),
-      }))
+  process.on('message', (msg: { type: string }) => {
+    if (msg.type !== 'getResults') return
 
-      process.send!({
-        type: 'results',
-        data: {
-          loadTimes: Object.fromEntries(loadTimes),
-          parents: Object.fromEntries(parents),
-          providers,
-        },
-      })
-    }
+    const providers = [...providerPhases.entries()].map(([name, t]) => ({
+      name,
+      registerTime: t.register || 0,
+      bootTime: t.boot || 0,
+      startTime: t.start || 0,
+      readyTime: t.ready || 0,
+      shutdownTime: t.shutdown || 0,
+      totalTime: (t.register || 0) + (t.boot || 0) + (t.start || 0) + (t.ready || 0),
+    }))
+
+    process.send!({
+      type: 'results',
+      data: {
+        loadTimes: Object.fromEntries(loadTimes),
+        parents: Object.fromEntries(parents),
+        providers,
+      },
+    })
   })
 }
