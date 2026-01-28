@@ -3,7 +3,7 @@
   "description": "AdonisJS cold start profiler - analyze and optimize your application boot time",
   "version": "0.1.0",
   "engines": {
-    "node": ">=20.6.0"
+    "node": ">=21.0.0"
   },
   "main": "./build/index.js",
   "types": "./build/index.d.ts",

@@ -9,9 +9,9 @@ Docteur profiles your AdonisJS application's cold start performance. It measures
 Install globally:
 
 ```bash
-npm install -g docteur
+npm install -g @densetsuuu/docteur
 # or
-pnpm add -g docteur
+pnpm add -g @densetsuuu/docteur
 ```
 
 ## Usage
@@ -148,7 +148,7 @@ Docteur measures cold start performance through two complementary approaches:
 ## Requirements
 
 - AdonisJS v7+
-- Node.js 20.6.0+
+- Node.js 21+
 
 ## License
 
