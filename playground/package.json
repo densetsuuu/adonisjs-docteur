@@ -65,7 +65,7 @@
     "@adonisjs/vite": "^5.1.0-next.2",
     "@vinejs/vine": "^4.2.0",
     "better-sqlite3": "^12.5.0",
-    "docteur": "workspace:*",
+    "@densetsuuu/docteur": "workspace:*",
     "edge.js": "^6.4.0",
     "luxon": "^3.7.2",
     "reflect-metadata": "^0.2.2"
