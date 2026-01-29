@@ -83,12 +83,7 @@ export function XRayApp({ result, cwd }: Props) {
   // Module detail view
   if (currentModule) {
     return (
-      <ModuleView
-        node={currentModule}
-        tree={tree}
-        onNavigate={navigateToModule}
-        onBack={goBack}
-      />
+      <ModuleView node={currentModule} tree={tree} onNavigate={navigateToModule} onBack={goBack} />
     )
   }
 

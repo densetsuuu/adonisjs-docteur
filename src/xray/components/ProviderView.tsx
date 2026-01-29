@@ -48,9 +48,7 @@ export function ProviderView({ provider, onBack }: Props) {
 
   const maxPhaseTime = Math.max(...phases.map((p) => p.value), 1)
 
-  const items = [
-    { key: 'back', label: `${symbols.arrowLeft} Back`, value: 'back' as const },
-  ]
+  const items = [{ key: 'back', label: `${symbols.arrowLeft} Back`, value: 'back' as const }]
 
   const handleSelect = (item: { value: string }) => {
     if (item.value === 'back') {
@@ -88,7 +86,12 @@ export function ProviderView({ provider, onBack }: Props) {
         <Text dimColor> Time spent in each provider method</Text>
         <Box marginTop={1} flexDirection="column">
           {phases.map((phase) => (
-            <PhaseRow key={phase.label} label={phase.label} value={phase.value} max={maxPhaseTime} />
+            <PhaseRow
+              key={phase.label}
+              label={phase.label}
+              value={phase.value}
+              max={maxPhaseTime}
+            />
           ))}
         </Box>
       </Box>
@@ -101,12 +104,8 @@ export function ProviderView({ provider, onBack }: Props) {
         <Text dimColor>
           {symbols.bullet} boot(): Initialization logic, after all providers registered
         </Text>
-        <Text dimColor>
-          {symbols.bullet} start(): Called when HTTP server starts
-        </Text>
-        <Text dimColor>
-          {symbols.bullet} ready(): Called when app is fully ready
-        </Text>
+        <Text dimColor>{symbols.bullet} start(): Called when HTTP server starts</Text>
+        <Text dimColor>{symbols.bullet} ready(): Called when app is fully ready</Text>
       </Box>
 
       {/* Navigation */}

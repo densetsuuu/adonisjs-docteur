@@ -9,10 +9,9 @@
 */
 
 import { fork } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
-import type { ModuleTiming, ProfileResult, ProviderTiming } from '../types.js'
+import type { ModuleTiming, ProfileResult } from '../types.js'
 import { ProfileCollector } from './collector.js'
 import { simplifyUrl } from './reporters/format.js'
 
@@ -21,11 +20,11 @@ const TIMEOUT_MS = 30_000
 type ResultsData = {
   loadTimes: Record<string, number>
   parents: Record<string, string>
-  providers: ProviderTiming[]
+  providerPhases: Record<string, Record<string, number>>
 }
 
 interface ProfilerState {
-  providers: ProviderTiming[]
+  providerPhases: Map<string, Record<string, number>>
   loadTimes: Map<string, number>
   parents: Map<string, string>
   bootDuration?: [number, number]
@@ -38,7 +37,7 @@ export interface ProfileOptions {
 }
 
 export function findLoaderPath(): string {
-  return fileURLToPath(import.meta.resolve('@densetsuuu/docteur/profiler/loader'))
+  return import.meta.resolve('@densetsuuu/docteur/profiler/loader')
 }
 
 export function findEntryPoint(cwd: string, entry?: string): string {
@@ -70,7 +69,7 @@ function runProfiledProcess(
 
   return new Promise((resolve, reject) => {
     const state: ProfilerState = {
-      providers: [],
+      providerPhases: new Map(),
       loadTimes: new Map(),
       parents: new Map(),
       done: false,
@@ -123,7 +122,7 @@ function runProfiledProcess(
         const data = (msg as { type: 'results'; data: ResultsData }).data
         state.loadTimes = new Map(Object.entries(data.loadTimes))
         state.parents = new Map(Object.entries(data.parents || {}))
-        state.providers = data.providers || []
+        state.providerPhases = new Map(Object.entries(data.providerPhases || {}))
         complete()
       }
     })
@@ -150,7 +149,7 @@ function buildResults(state: ProfilerState, cwd: string): ProfileResult {
     parentUrl: state.parents.get(url),
   }))
 
-  const collector = new ProfileCollector(modules, state.providers)
+  const collector = new ProfileCollector(modules, state.providerPhases)
 
   const bootTimeMs = state.bootDuration
     ? state.bootDuration[0] * 1000 + state.bootDuration[1] / 1_000_000

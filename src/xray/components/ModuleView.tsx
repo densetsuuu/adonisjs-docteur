@@ -197,7 +197,7 @@ export function ModuleView({ node, tree: _tree, onNavigate, onBack }: Props) {
           <Text dimColor> (with dependencies)</Text>
         </Box>
         <Box>
-          <Text dimColor> Self time:  </Text>
+          <Text dimColor> Self time: </Text>
           <Text color={getTimeColor(selfTime)}>{formatDuration(selfTime)}</Text>
           <Text dimColor> (this file only)</Text>
         </Box>

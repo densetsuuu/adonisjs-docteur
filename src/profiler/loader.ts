@@ -39,19 +39,12 @@ const asyncCalls = new Set<string>()
 
 // Set up message channel for hooks
 const { port1, port2 } = new MessageChannel()
-;(port1 as { unref?: () => void }).unref?.()
+port1.unref()
 
-port1.on(
-  'message',
-  (msg: { type: string; messages?: { type: string; [k: string]: unknown }[] }) => {
-    if (msg.type !== 'batch' || !msg.messages) return
-
-    for (const m of msg.messages) {
-      if (m.type === 'parent') parents.set(m.child as string, m.parent as string)
-      else if (m.type === 'timing') loadTimes.set(m.url as string, m.loadTime as number)
-    }
-  }
-)
+port1.on('message', (msg: { type: string; [k: string]: unknown }) => {
+  if (msg.type === 'parent') parents.set(msg.child as string, msg.parent as string)
+  else if (msg.type === 'timing') loadTimes.set(msg.url as string, msg.loadTime as number)
+})
 
 register('./hooks.js', {
   parentURL: import.meta.url,
@@ -63,46 +56,43 @@ register('./hooks.js', {
 // For async methods: start -> end -> asyncStart -> asyncEnd (we wait for asyncEnd)
 // For sync methods: start -> end (we record on end, but defer to check if async fires)
 
-function subscribePhase(channel: TracingChannel, phase: string) {
-  const getName = (msg: unknown) =>
-    (msg as { provider: { constructor: { name: string } } }).provider.constructor.name
+function getProviderName(msg: unknown) {
+  return (msg as { provider: { constructor: { name: string } } }).provider.constructor.name
+}
 
+function recordPhase(name: string, phase: string, endTime: number) {
+  const key = `${name}:${phase}`
+  const start = providerStarts.get(key)
+  if (start === undefined) return
+
+  const phases = providerPhases.get(name) || {}
+  phases[phase] = endTime - start
+  providerPhases.set(name, phases)
+  providerStarts.delete(key)
+}
+
+function subscribePhase(channel: TracingChannel, phase: string) {
   channel.subscribe({
     start(msg) {
-      providerStarts.set(`${getName(msg)}:${phase}`, performance.now())
+      providerStarts.set(`${getProviderName(msg)}:${phase}`, performance.now())
     },
     end(msg) {
-      const name = getName(msg)
+      const name = getProviderName(msg)
       const key = `${name}:${phase}`
       const endTime = performance.now()
 
       // Defer to check if this becomes async (asyncStart fires before our setTimeout)
       setTimeout(() => {
-        if (asyncCalls.has(key)) return
-        const start = providerStarts.get(key)
-        if (start !== undefined) {
-          const phases = providerPhases.get(name) || {}
-          phases[phase] = endTime - start
-          providerPhases.set(name, phases)
-          providerStarts.delete(key)
-        }
+        if (!asyncCalls.has(key)) recordPhase(name, phase, endTime)
       }, 0)
     },
     asyncStart(msg) {
-      asyncCalls.add(`${getName(msg)}:${phase}`)
+      asyncCalls.add(`${getProviderName(msg)}:${phase}`)
     },
     asyncEnd(msg) {
-      const name = getName(msg)
-      const key = `${name}:${phase}`
-      const start = providerStarts.get(key)
-
-      if (start !== undefined) {
-        const phases = providerPhases.get(name) || {}
-        phases[phase] = performance.now() - start
-        providerPhases.set(name, phases)
-        providerStarts.delete(key)
-      }
-      asyncCalls.delete(key)
+      const name = getProviderName(msg)
+      recordPhase(name, phase, performance.now())
+      asyncCalls.delete(`${name}:${phase}`)
     },
     error() {},
   })
@@ -119,22 +109,12 @@ if (process.send) {
   process.on('message', (msg: { type: string }) => {
     if (msg.type !== 'getResults') return
 
-    const providers = [...providerPhases.entries()].map(([name, t]) => ({
-      name,
-      registerTime: t.register || 0,
-      bootTime: t.boot || 0,
-      startTime: t.start || 0,
-      readyTime: t.ready || 0,
-      shutdownTime: t.shutdown || 0,
-      totalTime: (t.register || 0) + (t.boot || 0) + (t.start || 0) + (t.ready || 0),
-    }))
-
     process.send!({
       type: 'results',
       data: {
         loadTimes: Object.fromEntries(loadTimes),
         parents: Object.fromEntries(parents),
-        providers,
+        providerPhases: Object.fromEntries(providerPhases),
       },
     })
   })

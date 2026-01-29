@@ -88,7 +88,7 @@ export class ConsoleReporter implements Reporter {
   }
 
   #printSlowestModules(result: ProfileResult, config: ResolvedConfig, cwd: string): void {
-    const collector = new ProfileCollector(result.modules, result.providers)
+    const collector = new ProfileCollector(result.modules)
     const filtered = collector.filterModules(config)
     const slowest = new ProfileCollector(filtered).getTopSlowest(config.topModules)
 
@@ -134,7 +134,7 @@ export class ConsoleReporter implements Reporter {
   }
 
   #printPackageGroups(result: ProfileResult, config: ResolvedConfig): void {
-    const collector = new ProfileCollector(result.modules, result.providers)
+    const collector = new ProfileCollector(result.modules)
     const filtered = collector.filterModules(config)
     const groups = new ProfileCollector(filtered).groupModulesByPackage()
 
@@ -226,7 +226,7 @@ export class ConsoleReporter implements Reporter {
       )
     }
 
-    const collector = new ProfileCollector(result.modules, result.providers)
+    const collector = new ProfileCollector(result.modules)
     const filtered = collector.filterModules(config)
     const verySlowModules = filtered.filter((m) => getEffectiveTime(m) > 100)
     if (verySlowModules.length > 0) {

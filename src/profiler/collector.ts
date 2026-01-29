@@ -30,14 +30,29 @@ export class ProfileCollector {
   readonly #modules: ModuleTiming[]
   readonly #providers: ProviderTiming[]
 
-  constructor(modules: ModuleTiming[] = [], providers: ProviderTiming[] = []) {
+  constructor(
+    modules: ModuleTiming[] = [],
+    providerPhases: Map<string, Record<string, number>> = new Map()
+  ) {
     this.#modules = modules
-    this.#providers = providers
+    this.#providers = ProfileCollector.buildProviderTimings(providerPhases)
 
     // Compute subtree times if not already done (skip after filtering to avoid incomplete graph)
     if (modules.length > 0 && modules[0].subtreeTime === undefined) {
       this.#populateSubtreeTimes()
     }
+  }
+
+  static buildProviderTimings(phases: Map<string, Record<string, number>>): ProviderTiming[] {
+    return [...phases.entries()].map(([name, t]) => ({
+      name,
+      registerTime: t.register || 0,
+      bootTime: t.boot || 0,
+      startTime: t.start || 0,
+      readyTime: t.ready || 0,
+      shutdownTime: t.shutdown || 0,
+      totalTime: (t.register || 0) + (t.boot || 0) + (t.start || 0) + (t.ready || 0),
+    }))
   }
 
   #populateSubtreeTimes(): void {

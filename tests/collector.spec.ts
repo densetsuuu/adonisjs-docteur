@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import { ProfileCollector } from '../src/profiler/collector.js'
-import type { ModuleTiming, ProviderTiming } from '../src/types.js'
+import type { ModuleTiming } from '../src/types.js'
 
 function createModule(
   url: string,
@@ -17,21 +17,6 @@ function createModule(
   }
 }
 
-function createProvider(
-  name: string,
-  times: { register?: number; boot?: number; start?: number; ready?: number }
-): ProviderTiming {
-  return {
-    name,
-    registerTime: times.register ?? 0,
-    bootTime: times.boot ?? 0,
-    startTime: times.start ?? 0,
-    readyTime: times.ready ?? 0,
-    shutdownTime: 0,
-    totalTime: (times.register ?? 0) + (times.boot ?? 0) + (times.start ?? 0) + (times.ready ?? 0),
-  }
-}
-
 test.group('ProfileCollector - Subtree Time Computation', () => {
   test('computes subtree times for a linear dependency chain', ({ assert }) => {
     const modules = [
@@ -40,7 +25,7 @@ test.group('ProfileCollector - Subtree Time Computation', () => {
       createModule('file:///app/c.ts', 30, 'file:///app/b.ts'),
     ]
 
-    const collector = new ProfileCollector(modules, [])
+    const collector = new ProfileCollector(modules)
     const results = collector.collectResults(100)
 
     const moduleMap = new Map(results.modules.map((m) => [m.resolvedUrl, m]))
@@ -58,7 +43,7 @@ test.group('ProfileCollector - Subtree Time Computation', () => {
       createModule('file:///app/grandchild.ts', 20, 'file:///app/child1.ts'),
     ]
 
-    const collector = new ProfileCollector(modules, [])
+    const collector = new ProfileCollector(modules)
     const results = collector.collectResults(100)
 
     const moduleMap = new Map(results.modules.map((m) => [m.resolvedUrl, m]))
@@ -75,7 +60,7 @@ test.group('ProfileCollector - Subtree Time Computation', () => {
       createModule('file:///app/b.ts', 20, 'file:///app/a.ts'),
     ]
 
-    const collector = new ProfileCollector(modules, [])
+    const collector = new ProfileCollector(modules)
     const results = collector.collectResults(100)
 
     assert.isArray(results.modules)
@@ -91,7 +76,7 @@ test.group('ProfileCollector - Subtree Time Computation', () => {
       createModule('file:///app/b.ts', 20, 'file:///app/a.ts', 50),
     ]
 
-    const collector = new ProfileCollector(modules, [])
+    const collector = new ProfileCollector(modules)
     const results = collector.collectResults(100)
 
     assert.equal(results.modules[0].subtreeTime, 100)
@@ -107,7 +92,7 @@ test.group('ProfileCollector - Package Grouping', () => {
       createModule('file:///app/node_modules/express/index.js', 30),
     ]
 
-    const collector = new ProfileCollector(modules, [])
+    const collector = new ProfileCollector(modules)
     const groups = collector.groupModulesByPackage()
 
     const lodashGroup = groups.find((g) => g.name === 'lodash')
@@ -126,7 +111,7 @@ test.group('ProfileCollector - Package Grouping', () => {
       createModule('file:///app/node_modules/@poppinss/utils/index.js', 10),
     ]
 
-    const collector = new ProfileCollector(modules, [])
+    const collector = new ProfileCollector(modules)
     const groups = collector.groupModulesByPackage()
 
     const adonisGroup = groups.find((g) => g.name === '@adonisjs/core')
@@ -144,7 +129,7 @@ test.group('ProfileCollector - Package Grouping', () => {
       createModule('file:///app/config/app.ts', 5),
     ]
 
-    const collector = new ProfileCollector(modules, [])
+    const collector = new ProfileCollector(modules)
     const groups = collector.groupModulesByPackage()
 
     const appGroup = groups.find((g) => g.name === 'app')
@@ -159,7 +144,7 @@ test.group('ProfileCollector - Package Grouping', () => {
       createModule('file:///app/node_modules/medium-pkg/index.js', 50),
     ]
 
-    const collector = new ProfileCollector(modules, [])
+    const collector = new ProfileCollector(modules)
     const groups = collector.groupModulesByPackage()
 
     assert.equal(groups[0].name, 'slow-pkg')
@@ -177,12 +162,12 @@ test.group('ProfileCollector - Summary', () => {
       createModule('node:fs', 5),
     ]
 
-    const providers = [
-      createProvider('AppProvider', { register: 5, boot: 10 }),
-      createProvider('DbProvider', { register: 3, boot: 20 }),
-    ]
+    const providerPhases = new Map([
+      ['AppProvider', { register: 5, boot: 10 }],
+      ['DbProvider', { register: 3, boot: 20 }],
+    ])
 
-    const collector = new ProfileCollector(modules, providers)
+    const collector = new ProfileCollector(modules, providerPhases)
     const summary = collector.computeSummary()
 
     assert.equal(summary.totalModules, 4)
@@ -193,7 +178,7 @@ test.group('ProfileCollector - Summary', () => {
   })
 
   test('handles empty modules array', ({ assert }) => {
-    const collector = new ProfileCollector([], [])
+    const collector = new ProfileCollector()
     const summary = collector.computeSummary()
 
     assert.equal(summary.totalModules, 0)

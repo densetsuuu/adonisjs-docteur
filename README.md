@@ -52,11 +52,12 @@ Interactive TUI for exploring module dependencies.
 docteur xray [options]
 ```
 
-| Option    | Description               | Default         |
-| --------- | ------------------------- | --------------- |
-| `--entry` | Custom entry point        | `bin/server.ts` |
+| Option    | Description        | Default         |
+| --------- | ------------------ | --------------- |
+| `--entry` | Custom entry point | `bin/server.ts` |
 
 **Features:**
+
 - Browse slowest modules
 - Drill down into module dependencies
 - See why a module was loaded (import chain)
@@ -64,6 +65,7 @@ docteur xray [options]
 - Explore provider lifecycle times (register, boot, start, ready)
 
 **Keyboard shortcuts:**
+
 - `↑/↓` Navigate
 - `Enter` Select
 - `Tab` Switch between Modules/Providers view

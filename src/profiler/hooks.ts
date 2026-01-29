@@ -20,19 +20,6 @@ type LoadFn = (
 ) => Promise<{ format: string; source: string | ArrayBuffer | SharedArrayBuffer }>
 
 let port: MessagePort
-const queue: unknown[] = []
-let pending = false
-
-function send(msg: unknown) {
-  queue.push(msg)
-  if (!pending) {
-    pending = true
-    setImmediate(() => {
-      pending = false
-      port?.postMessage({ type: 'batch', messages: queue.splice(0) })
-    })
-  }
-}
 
 export function initialize(data: { port: MessagePort }) {
   port = data.port
@@ -42,7 +29,7 @@ export async function resolve(specifier: string, context: { parentURL?: string }
   const result = await next(specifier, context)
 
   if (context.parentURL && result.url.startsWith('file://')) {
-    send({ type: 'parent', child: result.url, parent: context.parentURL })
+    port.postMessage({ type: 'parent', child: result.url, parent: context.parentURL })
   }
 
   return result
@@ -57,7 +44,7 @@ export async function load(url: string, context: { format?: string }, next: Load
   const result = await next(url, context)
 
   if (result.format === 'module') {
-    send({ type: 'timing', url, loadTime: performance.now() - start })
+    port.postMessage({ type: 'timing', url, loadTime: performance.now() - start })
   }
 
   return result
