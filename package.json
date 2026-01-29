@@ -30,7 +30,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "quick:test": "node --import=./tsnode.esm.js --enable-source-maps bin/test.ts",
+    "quick:test": "node --conditions=development --import=./tsnode.esm.js --enable-source-maps bin/test.ts",
     "pretest": "npm run lint",
     "test": "c8 npm run quick:test",
     "prebuild": "npm run lint && npm run clean",
@@ -93,10 +93,22 @@
     }
   },
   "imports": {
-    "#registries/*": "./build/src/registries/*.js",
-    "#types": "./build/src/types.js",
-    "#profiler/*": "./build/src/profiler/*.js",
-    "#xray/*": "./build/src/xray/*.js"
+    "#registries/*": {
+      "development": "./src/registries/*.js",
+      "default": "./build/src/registries/*.js"
+    },
+    "#types": {
+      "development": "./src/types.js",
+      "default": "./build/src/types.js"
+    },
+    "#profiler/*": {
+      "development": "./src/profiler/*.js",
+      "default": "./build/src/profiler/*.js"
+    },
+    "#xray/*": {
+      "development": "./src/xray/*.js",
+      "default": "./build/src/xray/*.js"
+    }
   },
   "publishConfig": {
     "access": "public",
