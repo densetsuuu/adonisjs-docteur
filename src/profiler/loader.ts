@@ -23,16 +23,27 @@ type TracingChannel = {
   }): void
 }
 
-const require = createRequire(join(process.cwd(), 'node_modules', '_'))
+const projectRequire = createRequire(join(process.cwd(), 'node_modules', '_'))
 
 let tracingChannels: Record<string, TracingChannel> | null = null
 try {
-  const adonisApp = require('@adonisjs/application') as {
+  // Try direct require first (works when @adonisjs/application is a direct dependency)
+  const adonisApp = projectRequire('@adonisjs/application') as {
     tracingChannels: Record<string, TracingChannel>
   }
   tracingChannels = adonisApp.tracingChannels
 } catch {
-  // @adonisjs/application not available - provider tracing will be disabled
+  // Try to resolve through @adonisjs/core (for pnpm strict mode)
+  try {
+    const corePath = projectRequire.resolve('@adonisjs/core')
+    const coreRequire = createRequire(corePath)
+    const adonisApp = coreRequire('@adonisjs/application') as {
+      tracingChannels: Record<string, TracingChannel>
+    }
+    tracingChannels = adonisApp.tracingChannels
+  } catch {
+    // @adonisjs/application not available - provider tracing will be disabled
+  }
 }
 
 /**
