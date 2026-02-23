@@ -24,8 +24,15 @@ type TracingChannel = {
 }
 
 const require = createRequire(join(process.cwd(), 'node_modules', '_'))
-const { tracingChannels } = require('@adonisjs/application') as {
-  tracingChannels: Record<string, TracingChannel>
+
+let tracingChannels: Record<string, TracingChannel> | null = null
+try {
+  const adonisApp = require('@adonisjs/application') as {
+    tracingChannels: Record<string, TracingChannel>
+  }
+  tracingChannels = adonisApp.tracingChannels
+} catch {
+  // @adonisjs/application not available - provider tracing will be disabled
 }
 
 /**
@@ -74,32 +81,34 @@ function record(provider: string, phase: string, endTime: number) {
 
 const phases = ['register', 'boot', 'start', 'ready', 'shutdown'] as const
 
-for (const phase of phases) {
-  const channelKey =
-    `provider${phase[0].toUpperCase()}${phase.slice(1)}` as keyof typeof tracingChannels
+if (tracingChannels) {
+  for (const phase of phases) {
+    const channelKey =
+      `provider${phase[0].toUpperCase()}${phase.slice(1)}` as keyof typeof tracingChannels
 
-  tracingChannels[channelKey].subscribe({
-    start(msg) {
-      starts.set(`${name(msg)}:${phase}`, performance.now())
-    },
-    end(msg) {
-      const provider = name(msg)
-      const endTime = performance.now()
-      const key = `${provider}:${phase}`
-      setTimeout(() => {
-        if (!asyncPhases.has(key)) record(provider, phase, endTime)
-      }, 0)
-    },
-    asyncStart(msg) {
-      asyncPhases.add(`${name(msg)}:${phase}`)
-    },
-    asyncEnd(msg) {
-      const provider = name(msg)
-      record(provider, phase, performance.now())
-      asyncPhases.delete(`${provider}:${phase}`)
-    },
-    error() {},
-  })
+    tracingChannels[channelKey].subscribe({
+      start(msg) {
+        starts.set(`${name(msg)}:${phase}`, performance.now())
+      },
+      end(msg) {
+        const provider = name(msg)
+        const endTime = performance.now()
+        const key = `${provider}:${phase}`
+        setTimeout(() => {
+          if (!asyncPhases.has(key)) record(provider, phase, endTime)
+        }, 0)
+      },
+      asyncStart(msg) {
+        asyncPhases.add(`${name(msg)}:${phase}`)
+      },
+      asyncEnd(msg) {
+        const provider = name(msg)
+        record(provider, phase, performance.now())
+        asyncPhases.delete(`${provider}:${phase}`)
+      },
+      error() {},
+    })
+  }
 }
 
 /**
